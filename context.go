@@ -75,13 +75,22 @@ func (p Primitive) Exit()  { gl.End() }
 
 // Set the GL_PROJECTION matrix to use window co-ordinates and load the identity
 // matrix into the GL_MODELVIEW matrix
-type WindowCoords struct{}
+type WindowCoords struct {
+	NoReset bool
+	Invert  bool
+}
 
 func (wc WindowCoords) Enter() {
 	w, h := GetViewportWH()
 	Matrix{gl.PROJECTION}.Enter()
-	gl.LoadIdentity()
-	gl.Ortho(0, float64(w), float64(h), 0, -1, 1)
+	if !wc.NoReset {
+		gl.LoadIdentity()
+	}
+	if wc.Invert {
+		gl.Ortho(0, float64(w), float64(h), 0, -1, 1)
+	} else {
+		gl.Ortho(0, float64(w), 0, float64(h), -1, 1)
+	}
 	Matrix{gl.MODELVIEW}.Enter()
 	gl.LoadIdentity()
 }
