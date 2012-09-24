@@ -36,9 +36,6 @@ type Text struct {
 func MakeText(str string, size float64) *Text {
 	defer OpenGLSentinel()()
 
-	text := &Text{}
-	text.str = str
-
 	// TODO: Something if font doesn't exist
 	fontBytes, err := ioutil.ReadFile(FontFile)
 	if err != nil {
@@ -50,18 +47,24 @@ func MakeText(str string, size float64) *Text {
 	}
 
 	fg, bg := image.White, image.Black
+
 	c := freetype.NewContext()
 	c.SetDPI(72)
 	c.SetFont(font)
 	c.SetFontSize(size)
 
-	pt := freetype.Pt(10, 10+int(c.PointToFix32(size)>>8))
-	s, err := c.DrawString(text.str, pt)
+	pt := freetype.Pt(0, int(c.PointToFix32(size)>>8))
+	s, err := c.DrawString(str, pt)
 	if err != nil {
 		log.Panic("Error: ", err)
 	}
 
-	text.Texture = NewTexture(int(s.X/256), int(s.Y/256)+10)
+	spacing, offset := 1.5, 3
+
+	w := int(s.X >> 8)
+	h := int(c.PointToFix32(size*spacing)>>8) - offset
+
+	text := &Text{str: str, Texture: NewTexture(w, h)}
 
 	if text.W > 4096 {
 		text.W = 4096
