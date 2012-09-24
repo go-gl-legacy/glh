@@ -27,6 +27,8 @@ func init() {
 type Text struct {
 	str string
 	*Texture
+	Flipped   bool
+	DebugRect bool
 }
 
 // Create a *Texture containing a rendering of `str` with `size`.
@@ -97,7 +99,25 @@ func (text *Text) Destroy() {
 // Draw `text` at `x`, `y`.
 func (text *Text) Draw(x, y int) {
 	var w, h = text.W, text.H
-	With(text, func() {
-		DrawQuadi(x, y, w, h)
+
+	if text.Flipped {
+		h = -h
+	}
+	With(Attrib{gl.ENABLE_BIT | gl.COLOR_BUFFER_BIT}, func() {
+		gl.Enable(gl.BLEND)
+		gl.BlendFunc(gl.SRC_ALPHA, gl.DST_ALPHA)
+		//gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+		With(text, func() {
+			gl.TexEnvi(gl.TEXTURE_ENV, gl.TEXTURE_ENV_MODE, gl.MODULATE)
+			DrawQuadi(x, y, w, h)
+		})
 	})
+
+	if text.DebugRect {
+		gl.LineWidth(1)
+		With(Primitive{gl.LINE_LOOP}, func() {
+			sp := 0
+			Squarei(x-sp, y+sp, w+sp*2, h-sp*2)
+		})
+	}
 }
