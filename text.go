@@ -34,6 +34,10 @@ type Text struct {
 // Create a *Texture containing a rendering of `str` with `size`.
 // TODO: allow for alternative fonts
 func MakeText(str string, size float64) *Text {
+	if str == "" {
+		panic("Trying to build empty text")
+	}
+
 	defer OpenGLSentinel()()
 
 	// TODO: Something if font doesn't exist
