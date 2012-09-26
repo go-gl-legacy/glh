@@ -1,8 +1,11 @@
 language: go
 
+before_script:
+  - sudo apt-get install libglew-dev
+
 notifications:
   email:
     recipients:
-      - peter.waller@cern.ch
+      - peter.waller@gmail.com
     on_success: always
     on_failure: always
