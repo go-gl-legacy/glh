@@ -1,11 +1,39 @@
 language: go
 
-before_script:
-  - sudo apt-get install libglew-dev
+install:
+  - date +%H:%M:%S.%N
+  - sudo apt-get install eatmydata
+  - date +%H:%M:%S.%N
+  - yes | sudo apt-add-repository ppa:bumblebee/stable
+  - date +%H:%M:%S.%N
+  - sudo apt-get update -qq
+  - date +%H:%M:%S.%N
+  - sudo eatmydata apt-get install -qq libglew-dev virtualgl lightdm mesa-utils inotify-tools
+  - date +%H:%M:%S.%N
+  - sudo vglserver_config -config +s +f 
+  - date +%H:%M:%S.%N
+  - sudo mkdir -p /tmp/.X11-unix
+  - date +%H:%M:%S.%N
+  # Start the X server, giving us enough time to get to inotifywait
+  - (sleep 0.1 && sudo start lightdm) &
+  - date +%H:%M:%S.%N
+  # Wait for the X server to start
+  - inotifywait /tmp/.X11-unix
+  - date +%H:%M:%S.%N
+  - (vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears
+  - date +%H:%M:%S.%N
+  - go get -d -v
+
+script:
+  - go build -v
+
+after_script:
+  - go test -v
 
 notifications:
   email:
     recipients:
-      - peter.waller@gmail.com
-    on_success: always
+      - peter@pwaller.net
+      #- jimteeuwen@gmail.com
+    #on_success: always
     on_failure: always
