@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/go-gl/gl"
-	"github.com/pwaller/glu"
+	"github.com/go-gl/glu"
 )
 
 // Used as "defer OpenGLSentinel()()" checks the gl error code on call and exit
