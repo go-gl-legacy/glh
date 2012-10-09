@@ -3,7 +3,7 @@ package glhelpers
 import (
 	"log"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 func MakeShader(shader_type gl.GLenum, source string) gl.Shader {
