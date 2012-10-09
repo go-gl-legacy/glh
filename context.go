@@ -1,7 +1,7 @@
 package glhelpers
 
 import (
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 // Types implementing Context can be used with `With`
