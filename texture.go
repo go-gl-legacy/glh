@@ -51,7 +51,7 @@ func (t *Texture) AsImage() *image.RGBA {
 	rgba := image.NewRGBA(image.Rect(0, 0, t.W, t.H))
 	With(t, func() {
 		// TODO: check internal format (with GetIntegerv?)
-		gl.GetTexImage(gl.TEXTURE_2D, 0, gl.RGBA, rgba.Pix)
+		gl.GetTexImage(gl.TEXTURE_2D, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba.Pix)
 	})
 	return rgba
 }
