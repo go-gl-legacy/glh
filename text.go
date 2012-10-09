@@ -10,7 +10,7 @@ import (
 
 	"github.com/andrebq/gas"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 var FontFile string

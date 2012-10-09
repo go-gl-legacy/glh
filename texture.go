@@ -3,7 +3,7 @@ package glhelpers
 import (
 	"image"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 // A 2D Texture which implements Context, so can be used as:

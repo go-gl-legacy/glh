@@ -4,7 +4,7 @@ import (
 	"image"
 	"log"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 // Mapping from texture dimensions onto ready made framebuffer/renderbuffer

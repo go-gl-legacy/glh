@@ -3,7 +3,7 @@ package glhelpers
 import (
 	"unsafe"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 )
 
 type Vertex struct{ X, Y float32 }

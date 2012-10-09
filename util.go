@@ -3,7 +3,7 @@ package glhelpers
 import (
 	"log"
 
-	"github.com/banthar/gl"
+	"github.com/go-gl/gl"
 	"github.com/pwaller/glu"
 )
 
