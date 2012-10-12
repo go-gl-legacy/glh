@@ -1,27 +1,28 @@
 language: go
 
 install:
-  - date +%H:%M:%S.%N
-  - sudo apt-get install eatmydata
-  - date +%H:%M:%S.%N
-  - yes | sudo apt-add-repository ppa:bumblebee/stable
-  - date +%H:%M:%S.%N
-  - sudo apt-get update -qq
-  - date +%H:%M:%S.%N
-  - sudo eatmydata apt-get install -qq libglew-dev virtualgl lightdm mesa-utils inotify-tools
-  - date +%H:%M:%S.%N
-  - sudo vglserver_config -config +s +f 
-  - date +%H:%M:%S.%N
-  - sudo mkdir -p /tmp/.X11-unix
-  - date +%H:%M:%S.%N
+  - date +%H:%M:%S.%N &>> error.log
+  - sudo apt-get install eatmydata &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
+  - yes | sudo apt-add-repository ppa:bumblebee/stable &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
+  - sudo apt-get update -qq &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
+  - sudo eatmydata apt-get install -qq libglew-dev virtualgl lightdm mesa-utils inotify-tools &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
+  - sudo vglserver_config -config +s +f &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
+  - sudo mkdir -p /tmp/.X11-unix &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
   # Start the X server, giving us enough time to get to inotifywait
-  - (sleep 0.1 && sudo start lightdm) &
-  - date +%H:%M:%S.%N
+  - sudo start lightdm &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
   # Wait for the X server to start
-  - inotifywait /tmp/.X11-unix
-  - date +%H:%M:%S.%N
-  - (vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears
-  - date +%H:%M:%S.%N
+  - inotifywait /tmp/.X11-unix &>> error.log
+  - export DISPLAY=:0
+  - date +%H:%M:%S.%N &>> error.log
+  - ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
+  - date +%H:%M:%S.%N &>> error.log
   - go get -d -v
 
 script:
@@ -29,6 +30,13 @@ script:
 
 after_script:
   - go test -v
+
+after_failure:
+  - echo
+  - cat error.log
+after_error:
+  - echo
+  - cat error.log
 
 notifications:
   email:
