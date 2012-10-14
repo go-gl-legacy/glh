@@ -1,52 +1,24 @@
 language: go
 
 install:
-  - date +%H:%M:%S.%N &>> error.log
-  - sudo apt-get install eatmydata &>> error.log
-  #- date +%H:%M:%S.%N &>> error.log
-  #- yes | sudo apt-add-repository ppa:bumblebee/stable &>> error.log
-  #- date +%H:%M:%S.%N &>> error.log
-  #- sudo apt-get update -qq &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  #virtualgl
-  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev mesa-utils inotify-tools xserver-xorg &>> error.log
-  #- date +%H:%M:%S.%N &>> error.log
-  #- sudo vglserver_config -config +s +f &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  - sudo mkdir -p /tmp/.X11-unix &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  # Start the X server, giving us enough time to get to inotifywait
-  - (sleep 2 && sudo X) &>> error.log &
-  - date +%H:%M:%S.%N &>> error.log
-  # Wait for the X server to start
-  - inotifywait -t 4 -r /tmp/.X11-unix && echo Changed || echo No changes
-  # &>> error.log
-  - export DISPLAY=:0
-  - date +%H:%M:%S.%N &>> error.log
-  #- ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
-  - ((glxgears -info &) && sleep 10 && pkill glxgears) &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  - go get -d -v
-  # Fetch test dependencies
-  - go list -f '{{range .TestImports}}{{.}} {{end}}' | xargs go get -d -v
+  - wget https://raw.github.com/go-gl/testutils/master/travis-helper-functions.sh
+  - source travis-helper-functions.sh
 
 script:
   - go build -v
 
 after_script:
   - go test -v
-  - ls -la
-  - wget http://imgur.com/tools/imgurbash.sh
-  - chmod +x imgurbash.sh
-  - ./imgurbash.sh TestWindowCoords.png
-  - ls -la
+  - upload_to_imgur
 
 after_failure:
   - echo
   - cat error.log
+  - upload_to_imgur
 after_error:
   - echo
   - cat error.log
+  - upload_to_imgur
 
 notifications:
   email:
