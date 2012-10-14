@@ -16,14 +16,14 @@ install:
   - sudo mkdir -p /tmp/.X11-unix &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   # Start the X server, giving us enough time to get to inotifywait
-  - (sleep 0.5 && sudo X) &>> error.log &
+  - (sleep 2 && sudo X) &>> error.log &
   - date +%H:%M:%S.%N &>> error.log
   # Wait for the X server to start
   - inotifywait /tmp/.X11-unix &>> error.log
   - export DISPLAY=:0
   - date +%H:%M:%S.%N &>> error.log
   #- ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
-  - ((glxgears &) && sleep 10 && pkill glxgears) &>> error.log
+  - ((glxgears -info &) && sleep 10 && pkill glxgears) &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   - go get -d -v
   # Fetch test dependencies
