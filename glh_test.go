@@ -26,7 +26,7 @@ func init() {
 			log.Panic("glfw Error:", err)
 		}
 
-		w, h := 400, 400
+		w, h := 100, 100
 		err := glfw.OpenWindow(w, h, 0, 0, 0, 0, 0, 0, glfw.Windowed)
 		if err != nil {
 			log.Panic("Error:", err)
