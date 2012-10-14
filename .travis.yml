@@ -9,7 +9,7 @@ install:
   #- sudo apt-get update -qq &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   #virtualgl
-  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev mesa-utils inotify-tools &>> error.log
+  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev mesa-utils inotify-tools xserver-xorg &>> error.log
   #- date +%H:%M:%S.%N &>> error.log
   #- sudo vglserver_config -config +s +f &>> error.log
   - date +%H:%M:%S.%N &>> error.log
