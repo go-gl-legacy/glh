@@ -24,10 +24,15 @@ func OpenGLSentinel() func() {
 }
 
 // Returns w, h of viewport
-func GetViewportWH() (float64, float64) {
+func GetViewportWH() (int, int) {
 	var viewport [4]int32
 	gl.GetIntegerv(gl.VIEWPORT, viewport[0:3])
-	return float64(viewport[2]), float64(viewport[3])
+	return int(viewport[2]), int(viewport[3])
+}
+
+func GetViewportWHD() (float64, float64) {
+	w, h := GetViewportWH()
+	return float64(w), float64(h)
 }
 
 // Returns x, y in window co-ordinates at 0 in the z direction
