@@ -5,11 +5,9 @@ install:
   - source travis-helper-functions.sh
 
 script:
-  - at "script:"
   - go build -v
 
 after_script:
-  - at "after_script:"
   - go test -v
   - upload_to_imgur
 
