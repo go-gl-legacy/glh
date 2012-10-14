@@ -1,7 +1,14 @@
-package glhelpers
+// Copyright 2012 The go-gl Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package glh
 
 import (
+	"image"
+	"image/png"
 	"log"
+	"os"
 
 	"github.com/go-gl/gl"
 	"github.com/go-gl/glu"
@@ -24,10 +31,15 @@ func OpenGLSentinel() func() {
 }
 
 // Returns w, h of viewport
-func GetViewportWH() (float64, float64) {
+func GetViewportWH() (int, int) {
 	var viewport [4]int32
 	gl.GetIntegerv(gl.VIEWPORT, viewport[0:3])
-	return float64(viewport[2]), float64(viewport[3])
+	return int(viewport[2]), int(viewport[3])
+}
+
+func GetViewportWHD() (float64, float64) {
+	w, h := GetViewportWH()
+	return float64(w), float64(h)
 }
 
 // Returns x, y in window co-ordinates at 0 in the z direction
@@ -137,4 +149,20 @@ func DrawQuadd(x, y, w, h float64) {
 	With(Primitive{gl.QUADS}, func() {
 		Squared(x, y, w, h)
 	})
+}
+
+func CaptureToPng(filename string) {
+	w, h := GetViewportWH()
+
+	im := image.NewNRGBA(image.Rect(0, 0, w, h))
+	gl.ReadBuffer(gl.BACK_LEFT)
+	gl.ReadPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, im.Pix)
+
+	fd, err := os.Create(filename)
+	if err != nil {
+		log.Panic("Err: ", err)
+	}
+	defer fd.Close()
+
+	png.Encode(fd, im)
 }
