@@ -1,29 +1,25 @@
 language: go
 
 install:
-  - wget https://raw.github.com/go-gl/testutils/master/travis-helper-functions.sh
+  - wget -q https://raw.github.com/go-gl/testutils/master/travis-helper-functions.sh
   - source travis-helper-functions.sh
 
 script:
+  - at "script:"
   - go build -v
 
 after_script:
+  - at "after_script:"
   - go test -v
   - upload_to_imgur
 
-after_failure:
-  - echo
-  - cat error.log
-  - upload_to_imgur
-after_error:
-  - echo
-  - cat error.log
-  - upload_to_imgur
+after_failure: failure
+after_error: failure
 
 notifications:
   email:
     recipients:
       - peter@pwaller.net
-      #- jimteeuwen@gmail.com
+      - jimteeuwen@gmail.com
     #on_success: always
     on_failure: always
