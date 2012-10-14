@@ -70,3 +70,24 @@ func TestWindowCoords(t *testing.T) {
 		CaptureToPng("TestWindowCoords.png")
 	})
 }
+
+// Draw a test pattern
+func TestWindowCoordsA(t *testing.T) {
+	gltest.OnTheMainThread(func() {
+		gltest.SetWindowSize(40, 40)
+
+		w, h := GetViewportWH()
+		With(WindowCoords{}, func() {
+			// So that we draw in the middle of the pixel
+			gl.Translated(0.5, 0.5, 0)
+
+			With(Primitive{gl.POINTS}, func() {
+				for i := 0; i < w+1; i += 2 {
+					gl.Vertex2i(i, h/2)
+				}
+			})
+		})
+	}, func() {
+		CaptureToPng("TestWindowCoordsA.png")
+	})
+}
