@@ -8,7 +8,7 @@ install:
   - date +%H:%M:%S.%N &>> error.log
   - sudo apt-get update -qq &>> error.log
   - date +%H:%M:%S.%N &>> error.log
-  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev virtualgl lightdm mesa-utils inotify-tools &>> error.log
+  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev virtualgl mesa-utils inotify-tools &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   - sudo vglserver_config -config +s +f &>> error.log
   - date +%H:%M:%S.%N &>> error.log
@@ -23,9 +23,9 @@ install:
   - date +%H:%M:%S.%N &>> error.log
   - ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
   - date +%H:%M:%S.%N &>> error.log
-  # Required for the test in glh
-  - go get -v github.com/go-gl/glfw
   - go get -d -v
+  # Fetch test dependencies
+  - go list -f '{{range .TestImports}}{{.}} {{end}}' | go get -d -v
 
 script:
   - go build -v
