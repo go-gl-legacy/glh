@@ -1,7 +1,10 @@
 package glhelpers
 
 import (
+	"image"
+	"image/png"
 	"log"
+	"os"
 
 	"github.com/go-gl/gl"
 	"github.com/go-gl/glu"
@@ -142,4 +145,20 @@ func DrawQuadd(x, y, w, h float64) {
 	With(Primitive{gl.QUADS}, func() {
 		Squared(x, y, w, h)
 	})
+}
+
+func CaptureToPng(filename string) {
+	w, h := GetViewportWH()
+
+	im := image.NewNRGBA(image.Rect(0, 0, w, h))
+	gl.ReadBuffer(gl.BACK_LEFT)
+	gl.ReadPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, im.Pix)
+
+	fd, err := os.Create(filename)
+	if err != nil {
+		log.Panic("Err: ", err)
+	}
+	defer fd.Close()
+
+	png.Encode(fd, im)
 }
