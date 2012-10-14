@@ -3,25 +3,27 @@ language: go
 install:
   - date +%H:%M:%S.%N &>> error.log
   - sudo apt-get install eatmydata &>> error.log
+  #- date +%H:%M:%S.%N &>> error.log
+  #- yes | sudo apt-add-repository ppa:bumblebee/stable &>> error.log
+  #- date +%H:%M:%S.%N &>> error.log
+  #- sudo apt-get update -qq &>> error.log
   - date +%H:%M:%S.%N &>> error.log
-  - yes | sudo apt-add-repository ppa:bumblebee/stable &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  - sudo apt-get update -qq &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev virtualgl mesa-utils inotify-tools &>> error.log
-  - date +%H:%M:%S.%N &>> error.log
-  - sudo vglserver_config -config +s +f &>> error.log
+  #virtualgl
+  - sudo eatmydata apt-get install -qq libglfw-dev libglew-dev mesa-utils inotify-tools &>> error.log
+  #- date +%H:%M:%S.%N &>> error.log
+  #- sudo vglserver_config -config +s +f &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   - sudo mkdir -p /tmp/.X11-unix &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   # Start the X server, giving us enough time to get to inotifywait
-  - (sleep 5 && sudo start lightdm) &>> error.log &
+  - (sleep 0.5 && sudo X) &>> error.log &
   - date +%H:%M:%S.%N &>> error.log
   # Wait for the X server to start
   - inotifywait /tmp/.X11-unix &>> error.log
   - export DISPLAY=:0
   - date +%H:%M:%S.%N &>> error.log
-  - ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
+  #- ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
+  - ((glxgears &) && sleep 10 && pkill glxgears) &>> error.log
   - date +%H:%M:%S.%N &>> error.log
   - go get -d -v
   # Fetch test dependencies
