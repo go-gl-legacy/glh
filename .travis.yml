@@ -21,5 +21,5 @@ notifications:
     recipients:
       - peter@pwaller.net
       - jimteeuwen@gmail.com
-    #on_success: always
+    on_success: change
     on_failure: always
