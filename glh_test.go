@@ -49,6 +49,13 @@ func init() {
 	}()
 }
 
+func SetWindowSize(width, height int) {
+	glfw.SetWindowSize(width, height)
+	// Need to wait for the reshape event, otherwise it happens at an arbitrary
+	// point in the future (some unknown number of SwapBuffers())
+	glfw.WaitEvents()
+}
+
 func Reshape(width, height int) {
 	gl.Viewport(0, 0, width, height)
 
@@ -67,6 +74,8 @@ func Reshape(width, height int) {
 // Draw a test pattern
 func TestWindowCoords(t *testing.T) {
 	OnTheMainThread(func() {
+		SetWindowSize(40, 40)
+
 		w, h := GetViewportWH()
 		With(WindowCoords{}, func() {
 			// So that we draw in the middle of the pixel
