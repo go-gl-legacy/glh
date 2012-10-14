@@ -63,6 +63,7 @@ func getFBORBO(t *Texture) *fborbo {
 type Framebuffer struct {
 	*Texture
 	*fborbo
+	Level int
 }
 
 func (b *Framebuffer) Enter() {
@@ -73,7 +74,7 @@ func (b *Framebuffer) Enter() {
 	b.fbo.Bind()
 
 	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
-		b.Texture.Texture, 0)
+		b.Texture.Texture, b.Level)
 
 	s := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
 	if s != gl.FRAMEBUFFER_COMPLETE {
