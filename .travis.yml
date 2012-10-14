@@ -28,7 +28,7 @@ install:
   - date +%H:%M:%S.%N &>> error.log
   - go get -d -v
   # Fetch test dependencies
-  - go list -f '{{range .TestImports}}{{.}} {{end}}' | go get -d -v
+  - go list -f '{{range .TestImports}}{{.}} {{end}}' | xargs go get -d -v
 
 script:
   - go build -v
