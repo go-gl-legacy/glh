@@ -87,9 +87,9 @@ func (wc WindowCoords) Enter() {
 		gl.LoadIdentity()
 	}
 	if wc.Invert {
-		gl.Ortho(0, float64(w+1), float64(h+1), 0, -1, 1)
+		gl.Ortho(0, float64(w), float64(h), 0, -1, 1)
 	} else {
-		gl.Ortho(0, float64(w+1), 0, float64(h+1), -1, 1)
+		gl.Ortho(0, float64(w), 0, float64(h), -1, 1)
 	}
 	Matrix{gl.MODELVIEW}.Enter()
 	gl.LoadIdentity()
