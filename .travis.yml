@@ -19,7 +19,8 @@ install:
   - (sleep 2 && sudo X) &>> error.log &
   - date +%H:%M:%S.%N &>> error.log
   # Wait for the X server to start
-  - inotifywait /tmp/.X11-unix &>> error.log
+  - inotifywait -t 4 -r /tmp/.X11-unix && echo Changed || echo No changes
+  # &>> error.log
   - export DISPLAY=:0
   - date +%H:%M:%S.%N &>> error.log
   #- ((vglrun -d :0 -c proxy glxgears &) && sleep 1 && pkill glxgears) &>> error.log
