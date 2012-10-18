@@ -43,49 +43,31 @@ func Pow2Image(src image.Image) image.Image {
 
 	switch src := src.(type) {
 	case *image.Alpha:
-		dst := image.NewAlpha(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewAlpha(rect))
 
 	case *image.Alpha16:
-		dst := image.NewAlpha16(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewAlpha16(rect))
 
 	case *image.Gray:
-		dst := image.NewGray(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewGray(rect))
 
 	case *image.Gray16:
-		dst := image.NewGray16(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewGray16(rect))
 
 	case *image.NRGBA:
-		dst := image.NewNRGBA(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewNRGBA(rect))
 
 	case *image.NRGBA64:
-		dst := image.NewNRGBA64(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewNRGBA64(rect))
 
 	case *image.Paletted:
-		dst := image.NewPaletted(rect, src.Palette)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewPaletted(rect, src.Palette))
 
 	case *image.RGBA:
-		dst := image.NewRGBA(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewRGBA(rect))
 
 	case *image.RGBA64:
-		dst := image.NewRGBA64(rect)
-		copyImg(src, dst)
-		return dst
+		return copyImg(src, image.NewRGBA64(rect))
 	}
 
 	panic(fmt.Sprintf("Unsupported image format: %T", src))
@@ -98,7 +80,7 @@ type copyable interface {
 	Set(x, y int, clr color.Color)
 }
 
-func copyImg(src, dst copyable) {
+func copyImg(src, dst copyable) image.Image {
 	var x, y int
 	sb := src.Bounds()
 
@@ -107,4 +89,6 @@ func copyImg(src, dst copyable) {
 			dst.Set(x, y, src.At(x, y))
 		}
 	}
+
+	return dst
 }
