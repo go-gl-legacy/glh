@@ -5,18 +5,27 @@
 package glh
 
 import (
+	"image/color"
 	"unsafe"
 
 	"github.com/go-gl/gl"
 )
 
 type Vertex struct{ X, Y float32 }
-type Color struct{ R, G, B, A uint8 }
+
 type ColorVertex struct {
-	Color
+	color.RGBA
 	Vertex
 }
 type ColorVertices []ColorVertex
+
+func MkRGBA(c color.Color) color.RGBA {
+	if rgba, ok := c.(color.RGBA); ok {
+		return rgba
+	}
+	r, g, b, a := c.RGBA()
+	return color.RGBA{uint8(r / 0xff), uint8(g / 0xff), uint8(b / 0xff), uint8(a / 0xff)}
+}
 
 func (vcs ColorVertices) Draw(primitives gl.GLenum) {
 	if len(vcs) < 1 {
