@@ -6,6 +6,7 @@ package glh
 
 import (
 	"image"
+	"image/color"
 	"image/png"
 	"log"
 	"os"
@@ -165,4 +166,12 @@ func CaptureToPng(filename string) {
 	defer fd.Close()
 
 	png.Encode(fd, im)
+}
+
+func ColorC(c color.Color) {
+	if c == nil {
+		panic("nil color passed to ColorC")
+	}
+	r, g, b, a := c.RGBA()
+	gl.Color4us(uint16(r), uint16(g), uint16(b), uint16(a))
 }
