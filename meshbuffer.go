@@ -143,10 +143,6 @@ func (mb *MeshBuffer) RenderMesh(index int, mode gl.GLenum) {
 		return
 	}
 
-	if mb.state != mbClean {
-		mb.Commit()
-	}
-
 	md := mb.meshes[index]
 
 	mb.render(
