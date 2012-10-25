@@ -125,42 +125,14 @@ func (mb *MeshBuffer) Render(mode gl.GLenum) {
 		return
 	}
 
-	if mb.state != mbClean {
-		mb.Commit()
-	}
-
-	gl.PushClientAttrib(gl.CLIENT_VERTEX_ARRAY_BIT)
-	defer gl.PopClientAttrib()
-
-	if len(mb.vertices) > 0 {
-		gl.EnableClientState(gl.VERTEX_ARRAY)
-		defer gl.DisableClientState(gl.VERTEX_ARRAY)
-	}
-
-	if len(mb.colors) > 0 {
-		gl.EnableClientState(gl.COLOR_ARRAY)
-		defer gl.DisableClientState(gl.COLOR_ARRAY)
-	}
-
-	if len(mb.textures) > 0 {
-		gl.EnableClientState(gl.TEXTURE_COORD_ARRAY)
-		defer gl.DisableClientState(gl.TEXTURE_COORD_ARRAY)
-	}
-
-	if len(mb.normals) > 0 {
-		gl.EnableClientState(gl.NORMAL_ARRAY)
-		defer gl.DisableClientState(gl.NORMAL_ARRAY)
-	}
-
-	if len(mb.indices) > 0 {
-		mb.indexId.Bind(gl.ELEMENT_ARRAY_BUFFER)
-		gl.DrawElements(mode, len(mb.indices), gl.UNSIGNED_INT, uintptr(0))
-		mb.indexId.Unbind(gl.ELEMENT_ARRAY_BUFFER)
-	} else {
-		mb.vertexId.Bind(gl.ARRAY_BUFFER)
-		gl.DrawArrays(mode, 0, len(mb.vertices))
-		mb.vertexId.Unbind(gl.ARRAY_BUFFER)
-	}
+	mb.render(
+		mode,
+		0, len(mb.vertices),
+		0, len(mb.colors),
+		0, len(mb.textures),
+		0, len(mb.normals),
+		0, len(mb.indices),
+	)
 }
 
 // RenderMesh renders a single mesh, idenfified by its index.
@@ -177,40 +149,55 @@ func (mb *MeshBuffer) RenderMesh(index int, mode gl.GLenum) {
 
 	md := mb.meshes[index]
 
+	mb.render(
+		mode,
+		md.VertexStart, md.VertexCount,
+		md.ColorStart, md.ColorCount,
+		md.TextureStart, md.TextureCount,
+		md.NormalStart, md.NormalCount,
+		md.IndexStart, md.IndexCount,
+	)
+}
+
+// render draws the elements defined by the given start and count values for
+// [v]ertices, [c]olors, [t]exture coords, [n]ormals and [i]ndices.
+func (mb *MeshBuffer) render(mode gl.GLenum, vs, vc, cs, cc, ts, tc, ns, nc, is, ic int) {
+	if mb.state != mbClean {
+		mb.Commit()
+	}
+
 	gl.PushClientAttrib(gl.CLIENT_VERTEX_ARRAY_BIT)
 	defer gl.PopClientAttrib()
 
-	if md.VertexCount > 0 {
-		gl.EnableClientState(gl.VERTEX_ARRAY)
-		defer gl.DisableClientState(gl.VERTEX_ARRAY)
-	}
+	gl.EnableClientState(gl.VERTEX_ARRAY)
+	defer gl.DisableClientState(gl.VERTEX_ARRAY)
 
-	if md.ColorCount > 0 {
+	if cc > 0 {
 		gl.EnableClientState(gl.COLOR_ARRAY)
 		defer gl.DisableClientState(gl.COLOR_ARRAY)
 	}
 
-	if md.TextureCount > 0 {
+	if tc > 0 {
 		gl.EnableClientState(gl.TEXTURE_COORD_ARRAY)
 		defer gl.DisableClientState(gl.TEXTURE_COORD_ARRAY)
 	}
 
-	if md.NormalCount > 0 {
+	if nc > 0 {
 		gl.EnableClientState(gl.NORMAL_ARRAY)
 		defer gl.DisableClientState(gl.NORMAL_ARRAY)
 	}
 
-	if md.IndexCount > 0 {
-		start := md.IndexStart * mbIndexStride
+	if ic > 0 {
+		start := is * mbIndexStride
 
 		mb.indexId.Bind(gl.ELEMENT_ARRAY_BUFFER)
-		gl.DrawElements(mode, md.IndexCount, gl.UNSIGNED_INT, uintptr(start))
+		gl.DrawElements(mode, ic, gl.UNSIGNED_INT, uintptr(start))
 		mb.indexId.Unbind(gl.ELEMENT_ARRAY_BUFFER)
 	} else {
-		start := md.VertexStart * mbVertexStride
+		start := vs * mbVertexStride
 
 		mb.vertexId.Bind(gl.ARRAY_BUFFER)
-		gl.DrawArrays(mode, start, md.VertexCount)
+		gl.DrawArrays(mode, start, vc)
 		mb.vertexId.Unbind(gl.ARRAY_BUFFER)
 	}
 }
