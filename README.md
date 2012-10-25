@@ -9,9 +9,10 @@ This package contains a number of functions useful for applications using OpenGL
 
 *Features*
 
-* Textures
+* Textures and Texture Atlas.
 * Easy framebuffer rendering to texture
 * Contexts
 * Basic text manipulation
 * Easy shader loading
 * Easy efficient uploading of many colour/vertices
+* Mesh buffer
