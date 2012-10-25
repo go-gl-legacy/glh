@@ -343,6 +343,46 @@ func (mb *MeshBuffer) Append(m *Mesh) int {
 	return len(mb.meshes) - 1
 }
 
+// Delete removes the mesh with the given index from the buffer.
+func (mb *MeshBuffer) Delete(index int) {
+	if index < 0 || index >= len(mb.meshes) {
+		return
+	}
+
+	md := mb.meshes[index]
+
+	// Remove vertices.
+	s, c := md.VertexStart, md.VertexCount
+	copy(mb.vertices[s:], mb.vertices[s+c:])
+	mb.vertices = mb.vertices[:len(mb.vertices)-c]
+
+	// Remove texture coords.
+	s, c = md.TextureStart, md.TextureCount
+	copy(mb.textures[s:], mb.textures[s+c:])
+	mb.textures = mb.textures[:len(mb.textures)-c]
+
+	// Remove normals.
+	s, c = md.NormalStart, md.NormalCount
+	copy(mb.normals[s:], mb.normals[s+c:])
+	mb.normals = mb.normals[:len(mb.normals)-c]
+
+	// Remove colors.
+	s, c = md.ColorStart, md.ColorCount
+	copy(mb.colors[s:], mb.colors[s+c:])
+	mb.colors = mb.colors[:len(mb.colors)-c]
+
+	// Remove indices.
+	s, c = md.IndexStart, md.IndexCount
+	copy(mb.indices[s:], mb.indices[s+c:])
+	mb.indices = mb.indices[:len(mb.indices)-c]
+
+	// Remove mesh descriptor.
+	copy(mb.meshes[index:], mb.meshes[index+1:])
+	mb.meshes = mb.meshes[:len(mb.meshes)-1]
+
+	mb.state = mbDirty
+}
+
 // Usage returns the usage type associated with this buffer.
 func (mb *MeshBuffer) Usage() gl.GLenum { return mb.usage }
 
