@@ -52,7 +52,7 @@ var (
 // It can cache and render vertices, colors, texture coords and normals
 // for an arbitrary amount of independent meshes.
 type MeshBuffer struct {
-	meshes   []*MeshDescriptor // Mesh descriptor.
+	meshes   []*MeshDescriptor //  List of mesh descriptors.
 	vertices [][3]float32      // List of vertices.
 	colors   [][4]float32      // List of colors.
 	normals  [][3]float32      // List of normals.
@@ -72,7 +72,7 @@ type MeshBuffer struct {
 	gpuIndexSize   int // Current size of the indices buffer in GPU.
 
 	state int       // Mesh buffer state.
-	usage gl.GLenum // Usage flag. GL_DYNAMIC, STATIC_DRAW. GL_STREAM_DRAW, etc/
+	usage gl.GLenum // Usage flag: GL_DYNAMIC_DRAW, GL_STATIC_DRAW. GL_STREAM_DRAW, etc.
 }
 
 // NewMeshBuffer returns a new mesh buffer object.
