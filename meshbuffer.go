@@ -309,10 +309,10 @@ func (mb *MeshBuffer) Commit() {
 	mb.state = mbClean
 }
 
-// Append appends new mesh to the buffer.
+// Add appends new mesh to the buffer.
 // Returns an index for a MeshDescriptor object. This can be used to index
 // the list returned by MeshBuffer.Meshes()
-func (mb *MeshBuffer) Append(m *Mesh) int {
+func (mb *MeshBuffer) Add(m *Mesh) int {
 	mb.state = mbFrozen
 
 	md := new(MeshDescriptor)
@@ -343,8 +343,8 @@ func (mb *MeshBuffer) Append(m *Mesh) int {
 	return len(mb.meshes) - 1
 }
 
-// Delete removes the mesh with the given index from the buffer.
-func (mb *MeshBuffer) Delete(index int) {
+// Remove removes the mesh with the given index from the buffer.
+func (mb *MeshBuffer) Remove(index int) {
 	if index < 0 || index >= len(mb.meshes) {
 		return
 	}
