@@ -75,7 +75,7 @@ type MeshBuffer struct {
 	usage gl.GLenum // Usage flag. GL_DYNAMIC, STATIC_DRAW. GL_STREAM_DRAW, etc/
 }
 
-// NewMeshBuffer returns a new bertex buffer object.
+// NewMeshBuffer returns a new mesh buffer object.
 func NewMeshBuffer() *MeshBuffer {
 	mb := new(MeshBuffer)
 	mb.state = mbDirty
@@ -100,7 +100,7 @@ func (mb *MeshBuffer) Release() {
 	mb.Clear()
 }
 
-// Clear clears the vertex buffer.
+// Clear clears the mesh buffer.
 func (mb *MeshBuffer) Clear() {
 	mb.state = mbFrozen
 	mb.vertices = nil
@@ -218,7 +218,7 @@ func (mb *MeshBuffer) RenderMesh(index int, mode gl.GLenum) {
 // Commit pushes the buffer data to the GPU.
 //
 // This is normally called implicitely by MeshBuffer.Render and only
-// when necessary. However, it may need to be call manually, when the
+// when necessary. However, it may need to be called manually, when the
 // buffer data is changed.
 func (mb *MeshBuffer) Commit() {
 	if mb.state == mbFrozen {
