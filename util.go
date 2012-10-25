@@ -10,10 +10,54 @@ import (
 	"image/png"
 	"log"
 	"os"
+	"unsafe"
 
 	"github.com/go-gl/gl"
 	"github.com/go-gl/glu"
 )
+
+// Sizeof yields the byte size for GL type specified by the given enum.
+func Sizeof(gtype gl.GLenum) uint {
+	switch gtype {
+	case gl.BOOL:
+		var v gl.GLboolean
+		return uint(unsafe.Sizeof(v))
+
+	case gl.BYTE:
+		var v gl.GLbyte
+		return uint(unsafe.Sizeof(v))
+
+	case gl.UNSIGNED_BYTE:
+		var v gl.GLubyte
+		return uint(unsafe.Sizeof(v))
+
+	case gl.SHORT:
+		var v gl.GLshort
+		return uint(unsafe.Sizeof(v))
+
+	case gl.UNSIGNED_SHORT:
+		var v gl.GLushort
+		return uint(unsafe.Sizeof(v))
+
+	case gl.INT:
+		var v gl.GLint
+		return uint(unsafe.Sizeof(v))
+
+	case gl.UNSIGNED_INT:
+		var v gl.GLuint
+		return uint(unsafe.Sizeof(v))
+
+	case gl.FLOAT:
+		var v gl.GLfloat
+		return uint(unsafe.Sizeof(v))
+
+	case gl.DOUBLE:
+		var v gl.GLdouble
+		return uint(unsafe.Sizeof(v))
+	}
+
+	panic("Unsupported type")
+}
 
 // Used as "defer OpenGLSentinel()()" checks the gl error code on call and exit
 func OpenGLSentinel() func() {
