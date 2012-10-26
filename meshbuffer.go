@@ -8,158 +8,134 @@ import (
 	"github.com/go-gl/gl"
 )
 
-// Mesh describes data for a single mesh object.
-type Mesh struct {
-	Colors   [][4]float32
-	Vertices [][3]float32
-	Textures [][3]float32
-	Normals  [][3]float32
-	Indices  []uint
-}
-
-// MeshDescriptor describes the data offsets for a single
+// Mesh describes the data offsets for a single
 // mesh inside a mesh buffer.
-type MeshDescriptor struct {
-	VertexStart  int // Start index for vertex data.
-	VertexCount  int // Number of vertices.
-	TextureStart int // Start index for texture coordinate data.
-	TextureCount int // Number of texture coordinates.
-	NormalStart  int // Start index for normal data.
-	NormalCount  int // Number of normals.
-	ColorStart   int // Start index for color data.
-	ColorCount   int // Number of colors.
-	IndexStart   int // Start index for index data.
-	IndexCount   int // Number of indices.
+type Mesh struct {
+	PS int // Start index for position data.
+	PC int // Number of positions.
+	CS int // Start index for color data.
+	CC int // Number of colors.
+	NS int // Start index for normal data.
+	NC int // Number of normals.
+	TS int // Start index for texture coordinate data.
+	TC int // Number of texture coordinates.
+	IS int // Start index for index data.
+	IC int // Number of indices.
 }
-
-// Known mesh buffer states.
-const (
-	mbClean = iota
-	mbDirty
-	mbFrozen
-)
-
-// These define the size of each component, in bytes.
-var (
-	mbVertexStride  = int(Sizeof(gl.FLOAT)) * 3
-	mbColorStride   = int(Sizeof(gl.FLOAT)) * 4
-	mbNormalStride  = int(Sizeof(gl.FLOAT)) * 3
-	mbTextureStride = int(Sizeof(gl.FLOAT)) * 3
-	mbIndexStride   = int(Sizeof(gl.UNSIGNED_INT))
-)
 
 // MeshBuffer represents a mesh buffer.
 // It can cache and render vertices, colors, texture coords and normals
 // for an arbitrary amount of independent meshes.
 type MeshBuffer struct {
-	meshes   []*MeshDescriptor //  List of mesh descriptors.
-	vertices [][3]float32      // List of vertices.
-	colors   [][4]float32      // List of colors.
-	normals  [][3]float32      // List of normals.
-	textures [][3]float32      // List of texture coords.
-	indices  []uint            // List of indices.
-
-	vertexId  gl.Buffer // Vertex buffer identity.
-	colorId   gl.Buffer // Color buffer identity.
-	textureId gl.Buffer // Texture buffer identity.
-	normalId  gl.Buffer // Normal buffer identity.
-	indexId   gl.Buffer // Index buffer identity.
-
-	gpuVertexSize  int // Current size of the vertex buffer in GPU.
-	gpuColorSize   int // Current size of the color buffer in GPU.
-	gpuTextureSize int // Current size of the texture coord buffer in GPU.
-	gpuNormalSize  int // Current size of the normal buffer in GPU.
-	gpuIndexSize   int // Current size of the indices buffer in GPU.
-
-	state int       // Mesh buffer state.
-	usage gl.GLenum // Usage flag: GL_DYNAMIC_DRAW, GL_STATIC_DRAW. GL_STREAM_DRAW, etc.
+	meshes []*Mesh    // List of mesh descriptors.
+	attr   []MeshAttr // Attribute list.
 }
 
 // NewMeshBuffer returns a new mesh buffer object.
-func NewMeshBuffer() *MeshBuffer {
+//
+// The given attributes define the type and size of each vertex component.
+// Setting an attribute to nil, means the component is omitted and no data
+// is generated for it. This allowing us to limit the buffer size to the
+// space we actually require. For example:
+// 
+//    mb := NewMeshBuffer(
+//        // Indices: 1 unsigned int per index, static data.
+//        NewUint32Attr(1, gl.STATIC_DRAW),
+//        
+//        // Positions: 3 floats, static data.
+//        NewFloat32Attr(3, gl.STATIC_DRAW),
+//        
+//        // Colors: 4 floats, changing regularly.
+//        NewFloat32Attr(4, gl.DYNAMIC_DRAW),
+//        
+//        nil, // No vertex normals.
+//        nil, // No texture coords.
+//    )
+//
+// Any meshes loaded into this buffer through MeshBuffer.Add(), must adhere
+// to the format defined by these attributes.
+func NewMeshBuffer(index, position, color, normal, texture MeshAttr) *MeshBuffer {
+	if index == nil {
+		index = NewNullAttr()
+	}
+
+	index.SetTarget(gl.ELEMENT_ARRAY_BUFFER)
+
+	if position == nil {
+		position = NewNullAttr()
+	}
+
+	if color == nil {
+		color = NewNullAttr()
+	}
+
+	if normal == nil {
+		normal = NewNullAttr()
+	}
+
+	if texture == nil {
+		texture = NewNullAttr()
+	}
+
 	mb := new(MeshBuffer)
-	mb.state = mbDirty
-	mb.usage = gl.STATIC_DRAW
-	mb.vertexId = gl.GenBuffer()
-	mb.colorId = gl.GenBuffer()
-	mb.textureId = gl.GenBuffer()
-	mb.normalId = gl.GenBuffer()
-	mb.indexId = gl.GenBuffer()
+
+	// Do not change the order of these.
+	mb.attr = []MeshAttr{position, color, normal, texture, index}
 	return mb
 }
 
 // Release releases all resources for this buffer.
 func (mb *MeshBuffer) Release() {
-	mb.vertexId.Delete()
-	mb.indexId.Delete()
-	mb.vertexId.Delete()
-	mb.colorId.Delete()
-	mb.textureId.Delete()
-	mb.normalId.Delete()
-	mb.indexId.Delete()
-	mb.Clear()
+	for i := range mb.attr {
+		mb.attr[i].Release()
+		mb.attr[i] = nil
+	}
+
+	mb.attr = nil
+	mb.meshes = nil
 }
 
 // Clear clears the mesh buffer.
 func (mb *MeshBuffer) Clear() {
-	mb.state = mbFrozen
-	mb.vertices = nil
-	mb.colors = nil
-	mb.textures = nil
-	mb.normals = nil
-	mb.indices = nil
-	mb.meshes = nil
-	mb.gpuVertexSize = 0
-	mb.gpuColorSize = 0
-	mb.gpuTextureSize = 0
-	mb.gpuNormalSize = 0
-	mb.gpuIndexSize = 0
-	mb.state = mbDirty
+	for _, a := range mb.attr {
+		a.Clear()
+	}
+
+	mb.meshes = mb.meshes[:0]
 }
 
 // Render renders the entire mesh buffer.
 // The mode defines one of the symbolic constants like GL_TRIANGLES,
 // GL_QUADS, GL_POLYGON, GL_TRIANGLE_STRIP, etc.
 func (mb *MeshBuffer) Render(mode gl.GLenum) {
-	if len(mb.meshes) == 0 {
-		return
-	}
+	pc := mb.attr[0].Len()
+	cc := mb.attr[1].Len()
+	nc := mb.attr[2].Len()
+	tc := mb.attr[3].Len()
+	ic := mb.attr[4].Len()
 
-	mb.render(
-		mode,
-		0, len(mb.vertices),
-		0, len(mb.colors),
-		0, len(mb.textures),
-		0, len(mb.normals),
-		0, len(mb.indices),
-	)
+	mb.render(mode, 0, pc, 0, cc, 0, nc, 0, tc, 0, ic)
 }
 
 // RenderMesh renders a single mesh, idenfified by its index.
 // The mode defines one of the symbolic constants like GL_TRIANGLES,
 // GL_QUADS, GL_POLYGON, GL_TRIANGLE_STRIP, etc.
 func (mb *MeshBuffer) RenderMesh(index int, mode gl.GLenum) {
-	if index < 0 || index >= len(mb.meshes) {
-		return
+	if index >= 0 && index < len(mb.meshes) {
+		m := mb.meshes[index]
+		mb.render(mode, m.PS, m.PC, m.CS, m.CC, m.NS, m.NC, m.TS, m.TC, m.IS, m.IC)
 	}
-
-	md := mb.meshes[index]
-
-	mb.render(
-		mode,
-		md.VertexStart, md.VertexCount,
-		md.ColorStart, md.ColorCount,
-		md.TextureStart, md.TextureCount,
-		md.NormalStart, md.NormalCount,
-		md.IndexStart, md.IndexCount,
-	)
 }
 
 // render draws the elements defined by the given start and count values for
 // [v]ertices, [c]olors, [t]exture coords, [n]ormals and [i]ndices.
-func (mb *MeshBuffer) render(mode gl.GLenum, vs, vc, cs, cc, ts, tc, ns, nc, is, ic int) {
-	if mb.state != mbClean {
-		mb.Commit()
+func (mb *MeshBuffer) render(mode gl.GLenum, ps, pc, cs, cc, ns, nc, ts, tc, is, ic int) {
+	/// Re-commit data if necessary.
+	for _, attr := range mb.attr {
+		if attr.Dirty() {
+			mb.commit()
+			break
+		}
 	}
 
 	gl.PushClientAttrib(gl.CLIENT_VERTEX_ARRAY_BIT)
@@ -184,237 +160,129 @@ func (mb *MeshBuffer) render(mode gl.GLenum, vs, vc, cs, cc, ts, tc, ns, nc, is,
 	}
 
 	if ic > 0 {
-		start := is * mbIndexStride
+		attr := mb.attr[4] // index attribute.
+		attr.Bind()
 
-		mb.indexId.Bind(gl.ELEMENT_ARRAY_BUFFER)
-		gl.DrawElements(mode, ic, gl.UNSIGNED_INT, uintptr(start))
-		mb.indexId.Unbind(gl.ELEMENT_ARRAY_BUFFER)
+		gl.DrawElements(mode, ic, attr.Type(), uintptr(is*attr.Stride()))
+
+		attr.Unbind()
 	} else {
-		start := vs * mbVertexStride
+		attr := mb.attr[0] // position attribute.
+		attr.Bind()
 
-		mb.vertexId.Bind(gl.ARRAY_BUFFER)
-		gl.DrawArrays(mode, start, vc)
-		mb.vertexId.Unbind(gl.ARRAY_BUFFER)
+		gl.DrawArrays(mode, ps, pc)
+
+		attr.Unbind()
 	}
 }
 
-// Commit pushes the buffer data to the GPU.
-//
-// This is normally called implicitely by MeshBuffer.Render and only
-// when necessary. However, it may need to be called manually, when the
-// buffer data is changed.
-func (mb *MeshBuffer) Commit() {
-	if mb.state == mbFrozen {
-		return
-	}
-
-	// Upload vertices.
-	size := len(mb.vertices) * mbVertexStride
-	if size > 0 {
-		mb.vertexId.Bind(gl.ARRAY_BUFFER)
-
-		if size != mb.gpuVertexSize {
-			gl.BufferData(gl.ARRAY_BUFFER, size, mb.vertices, mb.usage)
-			mb.gpuVertexSize = size
-		} else {
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, size, mb.vertices)
+// commit pushes the buffer data to the GPU where necessary.
+func (mb *MeshBuffer) commit() {
+	for i, attr := range mb.attr {
+		if !attr.Dirty() || attr.Len() == 0 {
+			continue
 		}
 
-		gl.VertexPointer(3, gl.FLOAT, 0, uintptr(0))
-		mb.vertexId.Unbind(gl.ARRAY_BUFFER)
-	}
+		attr.Bind()
+		attr.Buffer()
 
-	// Upload colors.
-	size = len(mb.colors) * mbColorStride
-	if size > 0 {
-		mb.colorId.Bind(gl.ARRAY_BUFFER)
-
-		if size != mb.gpuColorSize {
-			gl.BufferData(gl.ARRAY_BUFFER, size, mb.colors, mb.usage)
-			mb.gpuColorSize = size
-		} else {
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, size, mb.colors)
+		switch i {
+		case 0:
+			gl.VertexPointer(attr.Size(), attr.Type(), 0, uintptr(0))
+		case 1:
+			gl.ColorPointer(attr.Size(), attr.Type(), 0, uintptr(0))
+		case 2:
+			gl.NormalPointer(attr.Type(), 0, uintptr(0))
+		case 3:
+			gl.TexCoordPointer(attr.Size(), attr.Type(), 0, uintptr(0))
+		case 4:
+			gl.IndexPointer(attr.Type(), 0, uintptr(0))
 		}
 
-		gl.ColorPointer(4, gl.FLOAT, 0, uintptr(0))
-		mb.colorId.Unbind(gl.ARRAY_BUFFER)
-	}
-
-	// Upload normals.
-	size = len(mb.normals) * mbNormalStride
-	if size > 0 {
-		mb.normalId.Bind(gl.ARRAY_BUFFER)
-
-		if size != mb.gpuNormalSize {
-			gl.BufferData(gl.ARRAY_BUFFER, size, mb.normals, mb.usage)
-			mb.gpuNormalSize = size
-		} else {
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, size, mb.normals)
-		}
-
-		gl.NormalPointer(gl.FLOAT, 0, uintptr(0))
-		mb.normalId.Unbind(gl.ARRAY_BUFFER)
-	}
-
-	// Upload texture coords.
-	size = len(mb.textures) * mbTextureStride
-	if size > 0 {
-		mb.textureId.Bind(gl.ARRAY_BUFFER)
-
-		if size != mb.gpuTextureSize {
-			gl.BufferData(gl.ARRAY_BUFFER, size, mb.textures, mb.usage)
-			mb.gpuTextureSize = size
-		} else {
-			gl.BufferSubData(gl.ARRAY_BUFFER, 0, size, mb.textures)
-		}
-
-		gl.TexCoordPointer(3, gl.FLOAT, 0, uintptr(0))
-		mb.textureId.Unbind(gl.ARRAY_BUFFER)
-	}
-
-	// Upload indices.
-	size = len(mb.indices) * mbIndexStride
-	if size > 0 {
-		mb.indexId.Bind(gl.ELEMENT_ARRAY_BUFFER)
-
-		if size != mb.gpuIndexSize {
-			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size, mb.indices, mb.usage)
-			mb.gpuIndexSize = size
-		} else {
-			gl.BufferSubData(gl.ELEMENT_ARRAY_BUFFER, 0, size, mb.indices)
-		}
-
-		gl.IndexPointer(gl.UNSIGNED_INT, 0, uintptr(0))
-		mb.indexId.Unbind(gl.ELEMENT_ARRAY_BUFFER)
+		attr.Unbind()
 	}
 
 	gl.Finish()
-	mb.state = mbClean
 }
 
-// Add appends new mesh to the buffer.
-// Returns an index for a MeshDescriptor object. This can be used to index
-// the list returned by MeshBuffer.Meshes()
-func (mb *MeshBuffer) Add(m *Mesh) int {
-	mb.state = mbFrozen
+// Add appends new mesh data to the buffer.
+// The data specified in these lists, should match the buffer attributes.
+// We expect to receive lists like []float32, []byte, or nil.
+//
+// Returns a Mesh object.
+func (mb *MeshBuffer) Add(indices, positions, colors, normals, textures interface{}) int {
+	pa := mb.attr[0]
+	ca := mb.attr[1]
+	na := mb.attr[2]
+	ta := mb.attr[3]
+	ia := mb.attr[4]
 
-	md := new(MeshDescriptor)
-	md.VertexStart = len(mb.vertices)
-	md.VertexCount = len(m.Vertices)
-	md.TextureStart = len(mb.textures)
-	md.TextureCount = len(m.Textures)
-	md.NormalStart = len(mb.normals)
-	md.NormalCount = len(m.Normals)
-	md.ColorStart = len(mb.colors)
-	md.ColorCount = len(m.Colors)
-	md.IndexStart = len(mb.indices)
-	md.IndexCount = len(m.Indices)
+	m := new(Mesh)
 
-	mb.meshes = append(mb.meshes, md)
-	mb.vertices = append(mb.vertices, m.Vertices...)
-	mb.textures = append(mb.textures, m.Textures...)
-	mb.normals = append(mb.normals, m.Normals...)
-	mb.colors = append(mb.colors, m.Colors...)
-	mb.indices = append(mb.indices, m.Indices...)
+	if pa.Size() > 0 {
+		if indices == nil {
+			panic("Missing index list")
+		}
 
-	// Update indices into the mesh buffers.
-	for i := md.IndexStart; i < len(mb.indices); i++ {
-		mb.indices[i] += uint(md.VertexStart)
+		m.PS = pa.Len() / pa.Size()
+		m.PC = pa.Append(positions) / pa.Size()
 	}
 
-	mb.state = mbDirty
+	if ca.Size() > 0 {
+		if colors == nil {
+			panic("Missing color list")
+		}
+
+		m.CC = ca.Len() / ca.Size()
+		m.CC = ca.Append(colors) / ca.Size()
+	}
+
+	if na.Size() > 0 {
+		if normals == nil {
+			panic("Missing normal list")
+		}
+
+		m.NS = na.Len() / na.Size()
+		m.NC = na.Append(normals) / na.Size()
+	}
+
+	if ta.Size() > 0 {
+		if textures == nil {
+			panic("Missing texture coordinate list")
+		}
+
+		m.TS = ta.Len() / ta.Size()
+		m.TC = ta.Append(textures) / ta.Size()
+	}
+
+	if ia.Size() > 0 {
+		if indices == nil {
+			panic("Missing index list")
+		}
+
+		m.IS = ia.Len() / ia.Size()
+		m.IC = ia.Append(indices) / ia.Size()
+		ia.Increment(m.IS, m.PS)
+	}
+
+	mb.meshes = append(mb.meshes, m)
 	return len(mb.meshes) - 1
 }
 
-// Remove removes the mesh with the given index from the buffer.
-func (mb *MeshBuffer) Remove(index int) {
-	if index < 0 || index >= len(mb.meshes) {
-		return
-	}
+// Meshes returns a list of meshes in the buffer.
+func (mb *MeshBuffer) Meshes() []*Mesh { return mb.meshes }
 
-	md := mb.meshes[index]
+// Position returns the mesh attribute for position data.
+func (mb *MeshBuffer) Position() MeshAttr { return mb.attr[0] }
 
-	// Remove vertices.
-	s, c := md.VertexStart, md.VertexCount
-	copy(mb.vertices[s:], mb.vertices[s+c:])
-	mb.vertices = mb.vertices[:len(mb.vertices)-c]
+// Colors returns the mesh attribute for color data.
+func (mb *MeshBuffer) Colors() MeshAttr { return mb.attr[1] }
 
-	// Remove texture coords.
-	s, c = md.TextureStart, md.TextureCount
-	copy(mb.textures[s:], mb.textures[s+c:])
-	mb.textures = mb.textures[:len(mb.textures)-c]
+// Normals returns the mesh attribute for normal data.
+func (mb *MeshBuffer) Normals() MeshAttr { return mb.attr[2] }
 
-	// Remove normals.
-	s, c = md.NormalStart, md.NormalCount
-	copy(mb.normals[s:], mb.normals[s+c:])
-	mb.normals = mb.normals[:len(mb.normals)-c]
+// Textures returns the mesh attribute for texture coordinate data.
+func (mb *MeshBuffer) Textures() MeshAttr { return mb.attr[3] }
 
-	// Remove colors.
-	s, c = md.ColorStart, md.ColorCount
-	copy(mb.colors[s:], mb.colors[s+c:])
-	mb.colors = mb.colors[:len(mb.colors)-c]
-
-	// Remove indices.
-	s, c = md.IndexStart, md.IndexCount
-	copy(mb.indices[s:], mb.indices[s+c:])
-	mb.indices = mb.indices[:len(mb.indices)-c]
-
-	// Remove mesh descriptor.
-	copy(mb.meshes[index:], mb.meshes[index+1:])
-	mb.meshes = mb.meshes[:len(mb.meshes)-1]
-
-	mb.state = mbDirty
-}
-
-// Usage returns the usage type associated with this buffer.
-func (mb *MeshBuffer) Usage() gl.GLenum { return mb.usage }
-
-// SetUsage sets the usage type for this buffer. Picking the right value for
-// the purpose of this buffer can greatly affect performance.
-// It defaults to GL_DYNAMIC_DRAW.
-//
-// The expected values are:
-//
-//    GL_STATIC_DRAW
-//    GL_DYNAMIC_DRAW
-//    GL_STREAM_DRAW
-//
-// "STATIC" means the data in mbO will not be changed (specified once and used
-// many times).
-//
-// "DYNAMIC" means the data will be changed frequently (specified and used
-// repeatedly).
-//
-// "STREAM" means the data will be changed every frame (specified once and
-// used once).
-//
-// The mbO memory manager will choose the best memory places for the buffer
-// object based on this usage flag. For example: GL_STATIC_DRAW and
-// GL_STREAM_DRAW may use video memory, while GL_DYNAMIC_DRAW may use AGP memory.
-//
-// Note: This issues a re-commit of the buffer data to take effect.
-func (mb *MeshBuffer) SetUsage(usage gl.GLenum) {
-	mb.usage = usage
-	mb.state = mbDirty
-}
-
-// Len returns the number of mesh objects in the buffer.
-func (mb *MeshBuffer) Len() int { return len(mb.meshes) }
-
-// Meshes returns a list of mesh descriptors.
-func (mb *MeshBuffer) Meshes() []*MeshDescriptor { return mb.meshes }
-
-// Vertices returns a list of all vertices in the buffer.
-func (mb *MeshBuffer) Vertices() [][3]float32 { return mb.vertices }
-
-// Colors returns a list of all colors in the buffer.
-func (mb *MeshBuffer) Colors() [][4]float32 { return mb.colors }
-
-// Textures returns a list of all texture coords in the buffer.
-func (mb *MeshBuffer) Textures() [][3]float32 { return mb.textures }
-
-// Normals returns a list of all normals in the buffer.
-func (mb *MeshBuffer) Normals() [][3]float32 { return mb.normals }
-
-// Indices returns a list of all indices in the buffer.
-func (mb *MeshBuffer) Indices() []uint { return mb.indices }
+// Indices returns the mesh attribute for index data.
+func (mb *MeshBuffer) Indices() MeshAttr { return mb.attr[4] }
