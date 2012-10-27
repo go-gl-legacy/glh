@@ -209,7 +209,7 @@ func (mb *MeshBuffer) commit() {
 // The data specified in these lists, should match the buffer attributes.
 // We expect to receive lists like []float32, []byte, or nil.
 //
-// Returns a Mesh object.
+// Returns an index into the MeshBuffer.Meshes() list.
 func (mb *MeshBuffer) Add(indices, positions, colors, normals, textures interface{}) int {
 	pa := mb.attr[0]
 	ca := mb.attr[1]
@@ -220,7 +220,7 @@ func (mb *MeshBuffer) Add(indices, positions, colors, normals, textures interfac
 	m := new(Mesh)
 
 	if pa.Size() > 0 {
-		if indices == nil {
+		if positions == nil {
 			panic("Missing index list")
 		}
 
