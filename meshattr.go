@@ -85,7 +85,7 @@ func NewAttrBase(size int, typ, usage gl.GLenum) *AttrBase {
 	a.target = gl.ARRAY_BUFFER
 	a.usage = usage
 	a.typ = typ
-	a.stride = int(Sizeof(typ)) * size
+	a.stride = int(Sizeof(typ))
 
 	if size > 0 {
 		a.buffer = gl.GenBuffer()
