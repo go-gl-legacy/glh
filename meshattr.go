@@ -6,643 +6,579 @@ package glh
 
 import (
 	"github.com/go-gl/gl"
+	"unsafe"
 )
 
-// A MeshAttr describes the type and size of a single vertex component.
-// These tell the MeshBuffer how to interpret mesh data. For example:
+// Pre-defined attribute names.
 //
-//    mb := NewMeshBuffer(
-//        // Indices: 1 unsigned int per index, static data.
-//        NewUint32Attr(1, gl.STATIC_DRAW),
-//        
-//        // Positions: 3 floats, static data.
-//        NewFloat32Attr(3, gl.STATIC_DRAW),
-//        
-//        // Colors: 4 floats, changing regularly.
-//        NewFloat32Attr(4, gl.DYNAMIC_DRAW),
-//        
-//        nil, // No vertex normals.
-//        nil, // No texture coords.
-//    )
-//
-type MeshAttr interface {
-	// Append expects a slice of values, equal to the type of the attribute.
-	// E.g.: []uint32, []float32, []byte, etc.
-	// It returns the number of elements that were added.
-	Append(interface{}) int
+// These are used by all render modes other than RenderShader
+// to deterine what the purpose of a given attribute is.
+const (
+	mbPositionKey = "position"
+	mbColorKey    = "color"
+	mbNormalKey   = "normal"
+	mbTexCoordKey = "texcoord"
+	mbIndexKey    = "index"
+)
 
-	// Removes elements in the given range.
-	Remove(start, count int)
-
-	// Increment the value of the elements in the given range.
-	// This is necessary to adjust offsets for indices.
-	Increment(start, value int)
-
-	Buffer()
-	Bind()
-	Unbind()
-
-	Clear()
-	Release()
-
-	Len() int
-	Size() int
-	Stride() int
-	Type() gl.GLenum
-	Usage() gl.GLenum
-
-	Target() gl.GLenum
-	SetTarget(gl.GLenum)
-
-	GpuSize() int
-	SetGpuSize(int)
-
-	// Dirty returns true if the attribute data has been changed 
-	// and it needs to be re-committed.
-	Dirty() bool
-	SetDirty(bool)
+// An Attr describes the type and size of a single vertex component.
+// These tell the MeshBuffer how to interpret mesh data.
+type Attr struct {
+	data    interface{} // Data store.
+	name    string      // Attribute name.
+	vbo     gl.Buffer   // Vertex buffer identity.
+	target  gl.GLenum   // Buffer type.
+	usage   gl.GLenum   // Usage type of this attribute.
+	typ     gl.GLenum   // Attribute type.
+	size    int         // Component size (number of elements).
+	stride  int         // Size of component in bytes.
+	gpuSize int         // Size of data on GPU.
+	invalid bool        // Do we require re-committing?
 }
 
-// #############################################################################
-// AttrBase is the base type for attributes. It takes care of 
-// operations common to all attribute types, so we don't have to keep
-// repeating it.
-type AttrBase struct {
-	buffer  gl.Buffer // Buffer identity.
-	usage   gl.GLenum // Usage type of this attribute.
-	target  gl.GLenum // Buffer type.
-	typ     gl.GLenum // Attribute type.
-	size    int       // Component size (number of elements).
-	stride  int       // Size of component in bytes.
-	gpuSize int       // Size of data on GPU.
-	dirty   bool      // Do we require re-committing?
-}
+// NewAttr creates a new mesh attribute for the given size,
+// type, usage value and name.
+//
+// In RenderShader mode, the name is the variable by which the component
+// can be referenced from a shader program.
+//
+// In other modes, the MeshBuffer uses this name to identify the attribute's
+// purpose. In these cases, it is advised to use the NewIndexAttr,
+// NewPositionAttr, etc. wrappers.
+func NewAttr(name string, size int, typ, usage gl.GLenum) *Attr {
+	a := new(Attr)
+	a.name = name
 
-// NewAttrBase creates a new attribute.
-func NewAttrBase(size int, typ, usage gl.GLenum) *AttrBase {
-	a := new(AttrBase)
-	a.size = size
+	if size == 0 {
+		return a
+	}
+
 	a.target = gl.ARRAY_BUFFER
+	a.size = size
 	a.usage = usage
 	a.typ = typ
+
+	a.Clear()
 	a.stride = int(Sizeof(typ))
-
-	if size > 0 {
-		a.buffer = gl.GenBuffer()
-	}
-
 	return a
 }
 
-// Release releases attribute resources.
-func (a *AttrBase) Release() {
-	if a.size > 0 {
-		a.buffer.Delete()
-		a.buffer = 0
+// NewPositionAttr creates a new vertex position attribute.
+func NewPositionAttr(size int, typ, usage gl.GLenum) *Attr {
+	return NewAttr(mbPositionKey, size, typ, usage)
+}
+
+// NewColorAttr creates a new vertex color attribute.
+func NewColorAttr(size int, typ, usage gl.GLenum) *Attr {
+	return NewAttr(mbColorKey, size, typ, usage)
+}
+
+// NewNormalAttr creates a new surface normal attribute.
+func NewNormalAttr(size int, typ, usage gl.GLenum) *Attr {
+	return NewAttr(mbNormalKey, size, typ, usage)
+}
+
+// NewTexCoordAttr creates a new vertex texture coordinate attribute.
+func NewTexCoordAttr(size int, typ, usage gl.GLenum) *Attr {
+	return NewAttr(mbTexCoordKey, size, typ, usage)
+}
+
+// NewIndexAttr creates a new index attribute.
+func NewIndexAttr(size int, typ, usage gl.GLenum) *Attr {
+	a := NewAttr(mbIndexKey, size, typ, usage)
+	a.target = gl.ELEMENT_ARRAY_BUFFER
+	return a
+}
+
+// init initializes some of the attribute fields.
+// These will be defined by the mesh buffer.
+func (a *Attr) init(mode RenderMode) {
+	switch mode {
+	case RenderClassic, RenderArrays:
+		// No VBO in classic and vertex array modes.
+	default:
+		a.vbo = gl.GenBuffer()
+	}
+}
+
+// release release attribute resources.
+func (a *Attr) release() {
+	if a.vbo != 0 {
+		a.vbo.Delete()
+		a.vbo = 0
 	}
 
 	a.gpuSize = 0
+	a.data = nil
 }
 
-func (a *AttrBase) Clear() {
+// Clear clears the attribute buffer.
+func (a *Attr) Clear() {
 	a.gpuSize = 0
-	a.dirty = true
+
+	switch a.typ {
+	case 0: // Null attribute -- do nothing
+	case gl.BYTE:
+		a.data = []int8{}
+	case gl.UNSIGNED_BYTE:
+		a.data = []uint8{}
+	case gl.SHORT:
+		a.data = []int16{}
+	case gl.UNSIGNED_SHORT:
+		a.data = []uint16{}
+	case gl.INT:
+		a.data = []int32{}
+	case gl.UNSIGNED_INT:
+		a.data = []uint32{}
+	case gl.FLOAT:
+		a.data = []float32{}
+	case gl.DOUBLE:
+		a.data = []float64{}
+	default:
+		panic("Invalid attribute type")
+	}
 }
 
-func (a *AttrBase) Dirty() bool           { return a.dirty }
-func (a *AttrBase) SetDirty(v bool)       { a.dirty = v }
-func (a *AttrBase) Size() int             { return a.size }
-func (a *AttrBase) Stride() int           { return a.stride }
-func (a *AttrBase) Bind()                 { a.buffer.Bind(a.target) }
-func (a *AttrBase) Unbind()               { a.buffer.Unbind(a.target) }
-func (a *AttrBase) Target() gl.GLenum     { return a.target }
-func (a *AttrBase) SetTarget(t gl.GLenum) { a.target = t }
-func (a *AttrBase) Type() gl.GLenum       { return a.typ }
-func (a *AttrBase) Usage() gl.GLenum      { return a.usage }
-func (a *AttrBase) GpuSize() int          { return a.gpuSize }
-func (a *AttrBase) SetGpuSize(sz int)     { a.gpuSize = sz }
+// Name returns the attribute name.
+func (a *Attr) Name() string { return a.name }
 
-// #############################################################################
-// A NullAttr is a mesh attribute for null values.
-// This is a special case used when one supplies 'nil' for a given
-// mesh attribute. It does not allocate a buffer and is used as a mock.
-type NullAttr struct {
-	*AttrBase
-}
+// Data returns the atribute data store.
+//
+// This value should be asserted to a concrete type, which would
+// be a slice of the attrbute's type. E.g.: []float32, []uint8, etc.
+func (a *Attr) Data() interface{} { return a.data }
 
-// NewNullAttr creates a new attribute.
-func NewNullAttr() MeshAttr {
-	a := new(NullAttr)
-	a.AttrBase = NewAttrBase(0, gl.BYTE, 0)
-	return a
-}
+// Invalid returns true if the data store needs to be re-committed.
+func (a *Attr) Invalid() bool { return a.invalid }
 
-func (a *NullAttr) Len() int               { return 0 }
-func (a *NullAttr) Release()               {}
-func (a *NullAttr) Clear()                 {}
-func (a *NullAttr) Buffer()                {}
-func (a *NullAttr) Increment(int, int)     {}
-func (a *NullAttr) Append(interface{}) int { return 0 }
-func (a *NullAttr) Remove(int, int)        {}
+// Invalidate marks the data store as invalid.
+// This should be done any time the data is modified externally.
+// It will be re-committed on the next render pass.
+func (a *Attr) Invalidate() { a.invalid = true }
 
-// #############################################################################
-// A Int8Attr is a mesh attribute for signed bytes.
-type Int8Attr struct {
-	*AttrBase
-	data []int8
-}
+// Size returns the number of elements in a vertext component for this attribute.
+func (a *Attr) Size() int { return a.size }
 
-// NewInt8Attr creates a new attribute.
-func NewInt8Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Int8Attr)
-	a.AttrBase = NewAttrBase(size, gl.BYTE, usage)
-	return a
-}
+// Stride returns the stride value for the data type this attribute holds.
+func (a *Attr) Stride() int { return a.stride }
 
-func (a *Int8Attr) Data() []int8 { return a.data }
-func (a *Int8Attr) Len() int     { return len(a.data) }
-func (a *Int8Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
+// Type returns the data type of the attribute.
+func (a *Attr) Type() gl.GLenum { return a.typ }
 
-func (a *Int8Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
+// bind binds the buffer.
+func (a *Attr) bind() { a.vbo.Bind(a.target) }
 
-func (a *Int8Attr) Buffer() {
-	size := len(a.data) * a.Stride()
+// unbind unbinds the buffer.
+func (a *Attr) unbind() { a.vbo.Unbind(a.target) }
 
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
+// Target returns the buffer target.
+func (a *Attr) Target() gl.GLenum { return a.target }
+
+// SetTarget sets the buffer target.
+func (a *Attr) SetTarget(t gl.GLenum) { a.target = t }
+
+// Len returns the number of elements in the data store.
+func (a *Attr) Len() int {
+	switch v := a.data.(type) {
+	case []int8:
+		return len(v)
+	case []uint8:
+		return len(v)
+	case []int16:
+		return len(v)
+	case []uint16:
+		return len(v)
+	case []int32:
+		return len(v)
+	case []uint32:
+		return len(v)
+	case []float32:
+		return len(v)
+	case []float64:
+		return len(v)
 	}
 
-	a.SetDirty(false)
+	return 0
 }
 
-func (a *Int8Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += int8(value)
-	}
-	a.SetDirty(false)
-}
+// buffer buffers the mesh data on the GPU.
+// This calls glBufferData or glBufferSubData where appropriate.
+func (a *Attr) buffer() {
+	switch v := a.data.(type) {
+	case []int8:
+		size := len(v) * a.stride
 
-func (a *Int8Attr) Append(data interface{}) int {
-	v := data.([]int8)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []uint8:
+		size := len(v) * a.stride
 
-func (a *Int8Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []int16:
+		size := len(v) * a.stride
 
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []uint16:
+		size := len(v) * a.stride
 
-// #############################################################################
-// A Uint8Attr is a mesh attribute for unsigned bytes.
-type Uint8Attr struct {
-	*AttrBase
-	data []uint8
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []int32:
+		size := len(v) * a.stride
 
-// NewUint8Attr creates a new attribute.
-func NewUint8Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Uint8Attr)
-	a.AttrBase = NewAttrBase(size, gl.UNSIGNED_BYTE, usage)
-	return a
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []uint32:
+		size := len(v) * a.stride
 
-func (a *Uint8Attr) Data() []uint8 { return a.data }
-func (a *Uint8Attr) Len() int      { return len(a.data) }
-func (a *Uint8Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []float32:
+		size := len(v) * a.stride
 
-func (a *Uint8Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
+	case []float64:
+		size := len(v) * a.stride
 
-func (a *Uint8Attr) Buffer() {
-	size := len(a.data) * a.Stride()
+		if size != a.gpuSize {
+			gl.BufferData(a.target, size, v, a.usage)
+			a.gpuSize = size
+		} else {
+			gl.BufferSubData(a.target, 0, size, v)
+		}
 
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
-	}
-
-	a.SetDirty(false)
-}
-
-func (a *Uint8Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += uint8(value)
-	}
-	a.SetDirty(true)
-}
-
-func (a *Uint8Attr) Append(data interface{}) int {
-	v := data.([]uint8)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
-
-func (a *Uint8Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
-
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
-
-// #############################################################################
-// A Int16Attr is a mesh attribute for signed shorts.
-type Int16Attr struct {
-	*AttrBase
-	data []int16
-}
-
-// NewInt16Attr creates a new attribute.
-func NewInt16Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Int16Attr)
-	a.AttrBase = NewAttrBase(size, gl.SHORT, usage)
-	return a
-}
-
-func (a *Int16Attr) Data() []int16 { return a.data }
-func (a *Int16Attr) Len() int      { return len(a.data) }
-func (a *Int16Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
-
-func (a *Int16Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
-
-func (a *Int16Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
 	}
 
-	a.SetDirty(true)
+	a.invalid = false
 }
 
-func (a *Int16Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += int16(value)
-	}
-	a.SetDirty(true)
-}
-
-func (a *Int16Attr) Append(data interface{}) int {
-	v := data.([]int16)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
-
-func (a *Int16Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
-
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
-
-// #############################################################################
-// A Uint16Attr is a mesh attribute for unsigned shorts.
-type Uint16Attr struct {
-	*AttrBase
-	data []uint16
-}
-
-func NewUint16Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Uint16Attr)
-	a.AttrBase = NewAttrBase(size, gl.UNSIGNED_SHORT, usage)
-	return a
-}
-
-func (a *Uint16Attr) Data() []uint16 { return a.data }
-func (a *Uint16Attr) Len() int       { return len(a.data) }
-func (a *Uint16Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
-
-func (a *Uint16Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
-
-func (a *Uint16Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
+// increment increments the value at the given range by the supplied value.
+// This is used internally by the mesh buffer.
+func (a *Attr) increment(start int, value float64) {
+	switch v := a.data.(type) {
+	case []int8:
+		for i := start; i < len(v); i++ {
+			v[i] += int8(value)
+		}
+	case []uint8:
+		for i := start; i < len(v); i++ {
+			v[i] += uint8(value)
+		}
+	case []int16:
+		for i := start; i < len(v); i++ {
+			v[i] += int16(value)
+		}
+	case []uint16:
+		for i := start; i < len(v); i++ {
+			v[i] += uint16(value)
+		}
+	case []int32:
+		for i := start; i < len(v); i++ {
+			v[i] += int32(value)
+		}
+	case []uint32:
+		for i := start; i < len(v); i++ {
+			v[i] += uint32(value)
+		}
+	case []float32:
+		for i := start; i < len(v); i++ {
+			v[i] += float32(value)
+		}
+	case []float64:
+		for i := start; i < len(v); i++ {
+			v[i] += value
+		}
 	}
 
-	a.SetDirty(false)
+	a.invalid = true
 }
 
-func (a *Uint16Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += uint16(value)
-	}
-	a.SetDirty(true)
-}
+// append appends the given slice to the data store.
+// We expect a slice of the appropriate type. E.g.: []uint8, []float32, etc.
+func (a *Attr) append(data interface{}) int {
+	var n int
 
-func (a *Uint16Attr) Append(data interface{}) int {
-	v := data.([]uint16)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
+	switch va := a.data.(type) {
+	case []int8:
+		vb := data.([]int8)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-func (a *Uint16Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
+	case []uint8:
+		vb := data.([]uint8)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
+	case []int16:
+		vb := data.([]int16)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-// #############################################################################
-// A Int32Attr is a mesh attribute for signed ints.
-type Int32Attr struct {
-	*AttrBase
-	data []int32
-}
+	case []uint16:
+		vb := data.([]uint16)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-// NewInt32Attr creates a new attribute.
-func NewInt32Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Int32Attr)
-	a.AttrBase = NewAttrBase(size, gl.INT, usage)
-	return a
-}
+	case []int32:
+		vb := data.([]int32)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-func (a *Int32Attr) Data() []int32 { return a.data }
-func (a *Int32Attr) Len() int      { return len(a.data) }
-func (a *Int32Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
+	case []uint32:
+		vb := data.([]uint32)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-func (a *Int32Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
+	case []float32:
+		vb := data.([]float32)
+		a.data = append(va, vb...)
+		n = len(vb)
 
-func (a *Int32Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
+	case []float64:
+		vb := data.([]float64)
+		a.data = append(va, vb...)
+		n = len(vb)
 	}
 
-	a.SetDirty(false)
+	a.invalid = true
+	return n
 }
 
-func (a *Int32Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += int32(value)
-	}
-	a.SetDirty(true)
-}
-
-func (a *Int32Attr) Append(data interface{}) int {
-	v := data.([]int32)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
-
-func (a *Int32Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
-
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
-
-// #############################################################################
-// A Uint32Attr is a mesh attribute for unsigned ints.
-type Uint32Attr struct {
-	*AttrBase
-	data []uint32
-}
-
-func NewUint32Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Uint32Attr)
-	a.AttrBase = NewAttrBase(size, gl.UNSIGNED_INT, usage)
-	return a
-}
-
-func (a *Uint32Attr) Data() []uint32 { return a.data }
-func (a *Uint32Attr) Len() int       { return len(a.data) }
-func (a *Uint32Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
-
-func (a *Uint32Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
-
-func (a *Uint32Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
+// Ptr returns a pointer to the element indicated by index.
+// Used in RenderArrays mode.
+func (a *Attr) ptr(index int) uintptr {
+	switch v := a.data.(type) {
+	case []int8:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []uint8:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []int16:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []uint16:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []int32:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []uint32:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []float32:
+		return uintptr(unsafe.Pointer(&v[index]))
+	case []float64:
+		return uintptr(unsafe.Pointer(&v[index]))
 	}
 
-	a.SetDirty(false)
+	return 0
 }
 
-func (a *Uint32Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += uint32(value)
+// vertex draws vertices.
+// Used in classic render mode.
+func (a *Attr) vertex(i int) {
+	i *= a.size
+
+	switch a.size {
+	case 2:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.Vertex2s(v[i], v[i+1])
+		case []int32:
+			gl.Vertex2i(int(v[i]), int(v[i+1]))
+		case []float32:
+			gl.Vertex2f(v[i], v[i+1])
+		case []float64:
+			gl.Vertex2d(v[i], v[i+1])
+		}
+	case 3:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.Vertex3s(v[i], v[i+1], v[i+2])
+		case []int32:
+			gl.Vertex3i(int(v[i]), int(v[i+1]), int(v[i+2]))
+		case []float32:
+			gl.Vertex3f(v[i], v[i+1], v[i+2])
+		case []float64:
+			gl.Vertex3d(v[i], v[i+1], v[i+2])
+		}
+	case 4:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.Vertex4s(v[i], v[i+1], v[i+2], v[i+3])
+		case []int32:
+			gl.Vertex4i(int(v[i]), int(v[i+1]), int(v[i+2]), int(v[i+3]))
+		case []float32:
+			gl.Vertex4f(v[i], v[i+1], v[i+2], v[i+3])
+		case []float64:
+			gl.Vertex4d(v[i], v[i+1], v[i+2], v[i+3])
+		}
 	}
-	a.SetDirty(true)
 }
 
-func (a *Uint32Attr) Append(data interface{}) int {
-	v := data.([]uint32)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
+// texcoord defines vertex texture coordinates.
+// Used in classic render mode.
+func (a *Attr) texcoord(i int) {
+	i *= a.size
 
-func (a *Uint32Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
-
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
-
-// #############################################################################
-// A Floa32tAttr is a mesh attribute for float values.
-type Float32Attr struct {
-	*AttrBase
-	data []float32
-}
-
-// NewFloatAttr creates a new attribute.
-func NewFloat32Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Float32Attr)
-	a.AttrBase = NewAttrBase(size, gl.FLOAT, usage)
-	return a
-}
-
-func (a *Float32Attr) Data() []float32 { return a.data }
-func (a *Float32Attr) Len() int        { return len(a.data) }
-func (a *Float32Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
-
-func (a *Float32Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
-
-func (a *Float32Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
-	}
-
-	a.SetDirty(false)
-}
-
-func (a *Float32Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += float32(value)
-	}
-	a.SetDirty(true)
-}
-
-func (a *Float32Attr) Append(data interface{}) int {
-	v := data.([]float32)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
-}
-
-func (a *Float32Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
-
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
-}
-
-// #############################################################################
-// A Floa64tAttr is a mesh attribute for double values.
-type Float64Attr struct {
-	*AttrBase
-	data []float64
-}
-
-// NewFloatAttr creates a new attribute.
-func NewFloat64Attr(size int, usage gl.GLenum) MeshAttr {
-	a := new(Float32Attr)
-	a.AttrBase = NewAttrBase(size, gl.DOUBLE, usage)
-	return a
-}
-
-func (a *Float64Attr) Data() []float64 { return a.data }
-func (a *Float64Attr) Len() int        { return len(a.data) }
-func (a *Float64Attr) Release() {
-	a.AttrBase.Release()
-	a.AttrBase = nil
-	a.data = nil
-}
-
-func (a *Float64Attr) Clear() {
-	a.AttrBase.Clear()
-	a.data = nil
-}
-
-func (a *Float64Attr) Buffer() {
-	size := len(a.data) * a.Stride()
-
-	if size != a.GpuSize() {
-		gl.BufferData(a.Target(), size, a.data, a.Usage())
-		a.SetGpuSize(size)
-	} else {
-		gl.BufferSubData(a.Target(), 0, size, a.data)
+	switch a.size {
+	case 1:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.TexCoord1s(v[i])
+		case []int32:
+			gl.TexCoord1i(int(v[i]))
+		case []float32:
+			gl.TexCoord1f(v[i])
+		case []float64:
+			gl.TexCoord1d(v[i])
+		}
+	case 2:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.TexCoord2s(v[i], v[i+1])
+		case []int32:
+			gl.TexCoord2i(int(v[i]), int(v[i+1]))
+		case []float32:
+			gl.TexCoord2f(v[i], v[i+1])
+		case []float64:
+			gl.TexCoord2d(v[i], v[i+1])
+		}
+	case 3:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.TexCoord3s(v[i], v[i+1], v[i+2])
+		case []int32:
+			gl.TexCoord3i(int(v[i]), int(v[i+1]), int(v[i+2]))
+		case []float32:
+			gl.TexCoord3f(v[i], v[i+1], v[i+2])
+		case []float64:
+			gl.TexCoord3d(v[i], v[i+1], v[i+2])
+		}
+	case 4:
+		switch v := a.data.(type) {
+		case []int16:
+			gl.TexCoord4s(v[i], v[i+1], v[i+2], v[i+3])
+		case []int32:
+			gl.TexCoord4i(int(v[i]), int(v[i+1]), int(v[i+2]), int(v[i+3]))
+		case []float32:
+			gl.TexCoord4f(v[i], v[i+1], v[i+2], v[i+3])
+		case []float64:
+			gl.TexCoord4d(v[i], v[i+1], v[i+2], v[i+3])
+		}
 	}
 
-	a.SetDirty(false)
 }
 
-func (a *Float64Attr) Increment(start, value int) {
-	for i := start; i < len(a.data); i++ {
-		a.data[i] += float64(value)
+// normal defines surface normals.
+// Used in classic render mode.
+func (a *Attr) normal(i int) {
+	if a.size != 3 {
+		return
 	}
-	a.SetDirty(true)
+
+	i *= a.size
+
+	switch v := a.data.(type) {
+	case []int8:
+		gl.Normal3b(v[i], v[i+1], v[i+2])
+	case []int16:
+		gl.Normal3s(v[i], v[i+1], v[i+2])
+	case []int32:
+		gl.Normal3i(int(v[i]), int(v[i+1]), int(v[i+2]))
+	case []float32:
+		gl.Normal3f(v[i], v[i+1], v[i+2])
+	case []float64:
+		gl.Normal3d(v[i], v[i+1], v[i+2])
+	}
 }
 
-func (a *Float64Attr) Append(data interface{}) int {
-	v := data.([]float64)
-	a.data = append(a.data, v...)
-	a.SetDirty(true)
-	return len(v)
+// Used in classic render mode.
+// Defines vertex colors.
+func (a *Attr) color(i int) {
+	i *= a.size
+
+	switch a.size {
+	case 3:
+		switch v := a.data.(type) {
+		case []int8:
+			gl.Color3b(v[i], v[i+1], v[i+2])
+		case []uint8:
+			gl.Color3ub(v[i], v[i+1], v[i+2])
+		case []int16:
+			gl.Color3s(v[i], v[i+1], v[i+2])
+		case []int32:
+			gl.Color3i(int(v[i]), int(v[i+1]), int(v[i+2]))
+		case []float32:
+			gl.Color3f(v[i], v[i+1], v[i+2])
+		case []float64:
+			gl.Color3d(v[i], v[i+1], v[i+2])
+		}
+	case 4:
+		switch v := a.data.(type) {
+		case []int8:
+			gl.Color4b(v[i], v[i+1], v[i+2], v[i+3])
+		case []uint8:
+			gl.Color4ub(v[i], v[i+1], v[i+2], v[i+3])
+		case []int16:
+			gl.Color4s(v[i], v[i+1], v[i+2], v[i+3])
+		case []int32:
+			gl.Color4i(int(v[i]), int(v[i+1]), int(v[i+2]), int(v[i+3]))
+		case []float32:
+			gl.Color4f(v[i], v[i+1], v[i+2], v[i+3])
+		case []float64:
+			gl.Color4d(v[i], v[i+1], v[i+2], v[i+3])
+		}
+	}
 }
 
-func (a *Float64Attr) Remove(s, c int) {
-	s *= a.Size()
-	c *= a.Size()
+// index returns the index at the given offset.
+// Used in classic render mode.
+func (a *Attr) index(offset int) int {
+	switch v := a.data.(type) {
+	case []int8:
+		return int(v[offset*a.size])
+	case []uint8:
+		return int(v[offset*a.size])
+	case []int16:
+		return int(v[offset*a.size])
+	case []uint16:
+		return int(v[offset*a.size])
+	case []int32:
+		return int(v[offset*a.size])
+	case []uint32:
+		return int(v[offset*a.size])
+	case []float32:
+		return int(v[offset*a.size])
+	case []float64:
+		return int(v[offset*a.size])
+	}
 
-	copy(a.data[s:], a.data[s+c:])
-	a.data = a.data[:len(a.data)-c]
-	a.SetDirty(true)
+	return 0
 }
