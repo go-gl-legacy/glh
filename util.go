@@ -196,12 +196,17 @@ func DrawQuadd(x, y, w, h float64) {
 	})
 }
 
+func CaptureRGBA(im *image.RGBA) {
+	b := im.Bounds()
+	gl.ReadBuffer(gl.BACK_LEFT)
+	gl.ReadPixels(0, 0, b.Dx(), b.Dy(), gl.RGBA, gl.UNSIGNED_BYTE, im.Pix)
+}
+
+// Note: You may want to call ClearAlpha(1) first..
 func CaptureToPng(filename string) {
 	w, h := GetViewportWH()
-
-	im := image.NewNRGBA(image.Rect(0, 0, w, h))
-	gl.ReadBuffer(gl.BACK_LEFT)
-	gl.ReadPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, im.Pix)
+	im := image.NewRGBA(image.Rect(0, 0, w, h))
+	CaptureRGBA(im)
 
 	fd, err := os.Create(filename)
 	if err != nil {
@@ -218,4 +223,13 @@ func ColorC(c color.Color) {
 	}
 	r, g, b, a := c.RGBA()
 	gl.Color4us(uint16(r), uint16(g), uint16(b), uint16(a))
+}
+
+// Clear the alpha channel in the color buffer
+func ClearAlpha(alpha_value gl.GLclampf) {
+	With(Attrib{gl.COLOR_BUFFER_BIT}, func() {
+		gl.ColorMask(false, false, false, true)
+		gl.ClearColor(0, 0, 0, alpha_value)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+	})
 }
