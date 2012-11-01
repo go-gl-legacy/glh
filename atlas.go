@@ -106,12 +106,12 @@ func (a *TextureAtlas) Clear() {
 }
 
 // Bind binds the atlas texture, so it can be used for rendering.
-func (a *TextureAtlas) Bind() { a.texture.Bind(gl.TEXTURE_2D) }
+func (a *TextureAtlas) Bind(target gl.GLenum) { a.texture.Bind(target) }
 
 // Unbind unbinds the current texture.
 // Note that this applies to any texture currently active.
 // If this is not the atlas texture, it will still perform the action.
-func (a *TextureAtlas) Unbind() { a.texture.Unbind(gl.TEXTURE_2D) }
+func (a *TextureAtlas) Unbind(target gl.GLenum) { a.texture.Unbind(target) }
 
 // Commit creates the actual texture from the atlas image data.
 // This should be called after all regions have been defined and set,
