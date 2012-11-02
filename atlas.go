@@ -106,38 +106,38 @@ func (a *TextureAtlas) Clear() {
 }
 
 // Bind binds the atlas texture, so it can be used for rendering.
-func (a *TextureAtlas) Bind() { a.texture.Bind(gl.TEXTURE_2D) }
+func (a *TextureAtlas) Bind(target gl.GLenum) { a.texture.Bind(target) }
 
 // Unbind unbinds the current texture.
 // Note that this applies to any texture currently active.
 // If this is not the atlas texture, it will still perform the action.
-func (a *TextureAtlas) Unbind() { a.texture.Unbind(gl.TEXTURE_2D) }
+func (a *TextureAtlas) Unbind(target gl.GLenum) { a.texture.Unbind(target) }
 
 // Commit creates the actual texture from the atlas image data.
 // This should be called after all regions have been defined and set,
 // and before you start using the texture for display.
-func (a *TextureAtlas) Commit() {
+func (a *TextureAtlas) Commit(target gl.GLenum) {
 	gl.PushAttrib(gl.CURRENT_BIT | gl.ENABLE_BIT)
-	gl.Enable(gl.TEXTURE_2D)
+	gl.Enable(target)
 
-	a.texture.Bind(gl.TEXTURE_2D)
+	a.texture.Bind(target)
 
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(target, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(target, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(target, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(target, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 
 	switch a.depth {
 	case 4:
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, a.width, a.height,
+		gl.TexImage2D(target, 0, gl.RGBA, a.width, a.height,
 			0, gl.RGBA, gl.UNSIGNED_BYTE, a.data)
 
 	case 3:
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, a.width, a.height,
+		gl.TexImage2D(target, 0, gl.RGB, a.width, a.height,
 			0, gl.RGB, gl.UNSIGNED_BYTE, a.data)
 
 	case 1:
-		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, a.width, a.height,
+		gl.TexImage2D(target, 0, gl.ALPHA, a.width, a.height,
 			0, gl.ALPHA, gl.UNSIGNED_BYTE, a.data)
 	}
 
