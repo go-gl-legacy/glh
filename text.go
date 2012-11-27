@@ -19,7 +19,15 @@ import (
 
 var FontFile string
 
-func init() {
+// Load the default font used to render packages. It will panic if unable to find the font.
+//
+// The search path used is: The directories of the GOPATH env-var and the current directory, ie. "."
+//
+// If FontFile already have a non-empty path, this method does nothing.
+func MustInitText() {
+	if len(FontFile) > 0 {
+		return
+	}
 	font := "code.google.com/p/freetype-go/luxi-fonts/luximr.ttf"
 	var err error
 	FontFile, err = gas.Abs(font)
