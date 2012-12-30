@@ -78,7 +78,7 @@ func (b *Framebuffer) Enter() {
 
 	s := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
 	if s != gl.FRAMEBUFFER_COMPLETE {
-		log.Panicf("Incomplete framebuffer, reason: %x", s)
+		log.Panicf("Incomplete framebuffer, reason: %x (level %d)", s, b.Level)
 	}
 }
 
