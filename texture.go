@@ -6,6 +6,9 @@ package glh
 
 import (
 	"image"
+	"image/draw"
+	"image/png"
+	"io"
 
 	"github.com/go-gl/gl"
 )
@@ -18,7 +21,7 @@ type Texture struct {
 	W, H int
 }
 
-// Create a new texture, initialize it to have a `gl.LINEAR` filter and use 
+// Create a new texture, initialize it to have a `gl.LINEAR` filter and use
 // `gl.CLAMP_TO_EDGE`.
 func NewTexture(w, h int) *Texture {
 	texture := &Texture{gl.GenTexture(), w, h}
@@ -64,4 +67,35 @@ func (t *Texture) AsImage() *image.RGBA {
 		gl.GetTexImage(gl.TEXTURE_2D, 0, gl.RGBA, gl.UNSIGNED_BYTE, rgba.Pix)
 	})
 	return rgba
+}
+
+func (t *Texture) FromImageRGBA(rgba *image.RGBA, level int) {
+	With(t, func() {
+		gl.TexImage2D(gl.TEXTURE_2D, level, gl.RGBA,
+			rgba.Bounds().Dx(), rgba.Bounds().Dy(),
+			0, gl.RGBA, gl.UNSIGNED_BYTE, rgba.Pix)
+	})
+}
+
+// Initialize this texture with image data from `im`. Note: copies the texture
+// if it isn't in RGBA format. This can happen if you load from png files.
+func (t *Texture) FromImage(im image.Image, level int) {
+	switch trueim := im.(type) {
+	case *image.RGBA:
+		t.FromImageRGBA(trueim, level)
+
+	default:
+		copy := image.NewRGBA(trueim.Bounds())
+		draw.Draw(copy, trueim.Bounds(), trueim, image.Pt(0, 0), draw.Src)
+		t.FromImageRGBA(copy, level)
+	}
+}
+
+func (t *Texture) FromPngReader(in io.Reader, level int) error {
+	im, err := png.Decode(in)
+	if err != nil {
+		return err
+	}
+	t.FromImage(im, level)
+	return nil
 }
