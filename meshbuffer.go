@@ -266,9 +266,6 @@ func (mb *MeshBuffer) renderArrays(mode gl.GLenum, m Mesh, pa, ca, na, ta, ia *A
 	}
 
 	if ic > 0 {
-		gl.EnableClientState(gl.INDEX_ARRAY)
-		defer gl.DisableClientState(gl.INDEX_ARRAY)
-		gl.IndexPointer(ia.typ, 0, ia.ptr(0))
 		gl.DrawElements(mode, ic, ia.typ, ia.ptr(is*ia.size))
 	} else {
 		gl.DrawArrays(mode, ps, pc)
@@ -333,14 +330,10 @@ func (mb *MeshBuffer) renderBuffered(mode gl.GLenum, m Mesh, pa, ca, na, ta, ia 
 	}
 
 	if ic > 0 {
-		gl.EnableClientState(gl.INDEX_ARRAY)
-		defer gl.DisableClientState(gl.INDEX_ARRAY)
-
 		ia.bind()
 
 		if ia.Invalid() {
 			ia.buffer()
-			gl.IndexPointer(ia.typ, 0, uintptr(0))
 		}
 
 		gl.PushClientAttrib(gl.CLIENT_VERTEX_ARRAY_BIT)
