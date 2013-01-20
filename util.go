@@ -148,7 +148,7 @@ func DebugLines() {
 	gl.MatrixMode(gl.MODELVIEW)
 }
 
-// Emit Vertices of a square with texture co-ordinates which wind anti-clockwise 
+// Emit Vertices of a square with texture co-ordinates which wind anti-clockwise
 func Squarei(x, y, w, h int) {
 	u, v, u2, v2 := 0, 1, 1, 0
 
