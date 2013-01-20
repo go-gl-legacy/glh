@@ -50,17 +50,17 @@ type MeshBuffer struct {
 //
 // The given attributes define the type and size of each vertex component.
 // For example:
-// 
+//
 //    mb := NewMeshBuffer(
 //        // Render our data using VBO's.
 //        glh.RenderBuffered,
-//    
+//
 //        // Indices: 1 unsigned short per index; static data.
 //        NewIndexAttr(1, gl.USIGNED_SHORT, gl.STATIC_DRAW),
-//        
+//
 //        // Positions: 3 floats; static data.
 //        NewPositionAttr(3, gl.FLOAT, gl.STATIC_DRAW),
-//        
+//
 //        // Colors: 4 floats; changing regularly.
 //        NewColorAttr(4, gl.FLOAT, gl.DYNAMIC_DRAW),
 //    )
