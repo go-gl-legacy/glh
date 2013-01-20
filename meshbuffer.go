@@ -50,17 +50,17 @@ type MeshBuffer struct {
 //
 // The given attributes define the type and size of each vertex component.
 // For example:
-// 
+//
 //    mb := NewMeshBuffer(
 //        // Render our data using VBO's.
 //        glh.RenderBuffered,
-//    
+//
 //        // Indices: 1 unsigned short per index; static data.
 //        NewIndexAttr(1, gl.USIGNED_SHORT, gl.STATIC_DRAW),
-//        
+//
 //        // Positions: 3 floats; static data.
 //        NewPositionAttr(3, gl.FLOAT, gl.STATIC_DRAW),
-//        
+//
 //        // Colors: 4 floats; changing regularly.
 //        NewColorAttr(4, gl.FLOAT, gl.DYNAMIC_DRAW),
 //    )
@@ -285,48 +285,48 @@ func (mb *MeshBuffer) renderBuffered(mode gl.GLenum, m Mesh, pa, ca, na, ta, ia 
 		gl.EnableClientState(gl.VERTEX_ARRAY)
 		defer gl.DisableClientState(gl.VERTEX_ARRAY)
 
+		pa.bind()
 		if pa.Invalid() {
-			pa.bind()
 			pa.buffer()
-			gl.VertexPointer(pa.size, pa.typ, 0, uintptr(0))
-			pa.unbind()
 		}
+		gl.VertexPointer(pa.size, pa.typ, 0, uintptr(0))
+		pa.unbind()
 	}
 
 	if cc > 0 {
 		gl.EnableClientState(gl.COLOR_ARRAY)
 		defer gl.DisableClientState(gl.COLOR_ARRAY)
 
+		ca.bind()
 		if ca.Invalid() {
-			ca.bind()
 			ca.buffer()
-			gl.ColorPointer(ca.size, ca.typ, 0, uintptr(0))
-			ca.unbind()
 		}
+		gl.ColorPointer(ca.size, ca.typ, 0, uintptr(0))
+		ca.unbind()
 	}
 
 	if nc > 0 {
 		gl.EnableClientState(gl.NORMAL_ARRAY)
 		defer gl.DisableClientState(gl.NORMAL_ARRAY)
 
+		na.bind()
 		if na.Invalid() {
-			na.bind()
 			na.buffer()
-			gl.NormalPointer(na.typ, 0, uintptr(0))
-			na.unbind()
 		}
+		gl.NormalPointer(na.typ, 0, uintptr(0))
+		na.unbind()
 	}
 
 	if tc > 0 {
 		gl.EnableClientState(gl.TEXTURE_COORD_ARRAY)
 		defer gl.DisableClientState(gl.TEXTURE_COORD_ARRAY)
 
+		ta.bind()
 		if ta.Invalid() {
-			ta.bind()
 			ta.buffer()
-			gl.TexCoordPointer(ta.size, ta.typ, 0, uintptr(0))
-			ta.unbind()
 		}
+		gl.TexCoordPointer(ta.size, ta.typ, 0, uintptr(0))
+		ta.unbind()
 	}
 
 	if ic > 0 {

@@ -30,10 +30,10 @@ type AtlasRegion struct {
 // A texture atlas is used to tightly pack arbitrarily many small images
 // into a single texture.
 //
-// The actual implementation is based on the article by Jukka Jylänki: 
+// The actual implementation is based on the article by Jukka Jylänki:
 // "A Thousand Ways to Pack the Bin - A Practical Approach to Two-Dimensional
 // Rectangle Bin Packing", February 27, 2010.
-// 
+//
 // More precisely, this is an implementation of the
 // 'Skyline Bottom-Left' algorithm.
 type TextureAtlas struct {
