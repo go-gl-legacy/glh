@@ -5,12 +5,11 @@
 package glh
 
 import (
+	"github.com/go-gl/gl"
 	"image"
 	"image/draw"
 	"image/png"
 	"io"
-
-	"github.com/go-gl/gl"
 )
 
 // A 2D Texture which implements Context, so can be used as:
@@ -38,14 +37,10 @@ func NewTexture(w, h int) *Texture {
 // Initialize texture storage. _REQUIRED_ before using it as a framebuffer target.
 func (t *Texture) Init() {
 	With(t, func() {
-		n_levels := []int32{0}
-
-		gl.GetTexParameteriv(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, n_levels)
-
-		for i := 0; i < int(n_levels[0]); i++ {
-			gl.TexImage2D(gl.TEXTURE_2D, i, gl.RGBA, t.W, t.H, 0, gl.RGBA,
-				gl.UNSIGNED_BYTE, nil)
-		}
+		// generate base level storage
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, t.W, t.H, 0, gl.RGBA, gl.UNSIGNED_BYTE, nil)
+		// generate required number of mipmaps given texture dimensions
+		gl.GenerateMipmap(gl.TEXTURE_2D)
 	})
 }
 
