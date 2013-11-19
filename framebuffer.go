@@ -85,3 +85,7 @@ func (b *Framebuffer) Enter() {
 func (b *Framebuffer) Exit() {
 	b.fbo.Unbind()
 }
+
+func (b *Framebuffer) BindFramebuffer(target gl.GLenum) {
+	b.fborbo.fbo.BindTarget(target)
+}
