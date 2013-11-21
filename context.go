@@ -69,6 +69,44 @@ func (a Attrib) Exit() {
 	gl.PopAttrib()
 }
 
+type _enable struct {
+	enums []gl.GLenum
+}
+
+func (e _enable) Enter() {
+	gl.PushAttrib(gl.ENABLE_BIT)
+	for _, item := range e.enums {
+		gl.Enable(item)
+	}
+}
+
+func (e _enable) Exit() {
+	gl.PopAttrib()
+}
+
+func Enable(enums ...gl.GLenum) Context {
+	return _enable{enums}
+}
+
+type _disable struct {
+	enums []gl.GLenum
+}
+
+func (e _disable) Enter() {
+	gl.PushAttrib(gl.ENABLE_BIT)
+	for _, item := range e.enums {
+		gl.Disable(item)
+	}
+}
+
+func (e _disable) Exit() {
+	gl.PopAttrib()
+}
+
+func Disable(enums ...gl.GLenum) Context {
+	return _disable{enums}
+}
+
 // Context which does `gl.Begin` and `gl.End`
 // Example:
 // 	With(Primitive{gl.LINES}, func() { gl.Vertex2f(0, 0); gl.Vertex2f(1,1) })
