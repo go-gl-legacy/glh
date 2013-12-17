@@ -19,10 +19,10 @@ func (s Shader) Compile() gl.Shader {
 	return MakeShader(s.Type, s.Program)
 }
 
-func NewProgram(shaders ...Shader) gl.Program {
+func NewProgram(shaders ...gl.Shader) gl.Program {
 	program := gl.CreateProgram()
 	for _, shader := range shaders {
-		program.AttachShader(shader.Compile())
+		program.AttachShader(shader)
 	}
 
 	program.Link()
