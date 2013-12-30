@@ -28,7 +28,7 @@ func MustInitText() {
 	if len(FontFile) > 0 {
 		return
 	}
-	font := "code.google.com/p/freetype-go/luxi-fonts/luximr.ttf"
+	font := "code.google.com/p/freetype-go/testdata/luximr.ttf"
 	var err error
 	FontFile, err = gas.Abs(font)
 	if err != nil {
@@ -55,7 +55,7 @@ func MakeText(str string, size float64) *Text {
 	// TODO: Something if font doesn't exist
 	fontBytes, err := ioutil.ReadFile(FontFile)
 	if err != nil {
-		log.Panic(err)
+		log.Panic(err, "fontfile =", FontFile)
 	}
 	font, err := freetype.ParseFont(fontBytes)
 	if err != nil {
