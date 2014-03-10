@@ -101,38 +101,3 @@ func TestWindowCoordsA(t *testing.T) {
 		CaptureToPng("TestWindowCoordsA.png")
 	})
 }
-
-// Check if the font can be found.
-func TestMustInitText(t *testing.T) {
-	gltest.OnTheMainThread(func() {
-		err := func() (p interface{}) {
-			defer func() {
-				p = recover() // kill the panic here
-			}()
-			MustInitText()
-			return nil
-		}()
-		if err != nil {
-			t.Errorf("Unable to initialize the FontFile variable. Cause: %v", err)
-		}
-
-		var expectedFontFile = "invalid font file"
-		err = func() (p interface{}) {
-			defer func() {
-				p = recover()
-			}()
-			FontFile = expectedFontFile
-			MustInitText()
-			return nil
-		}()
-
-		if err != nil {
-			t.Errorf("When the FontFile variable is set, MustInitText should be a no-op, but got: %v", err)
-		}
-
-		if FontFile != expectedFontFile {
-			t.Errorf("Excpecting FontFile to be [%v] but got [%v]", expectedFontFile, FontFile)
-		}
-
-	}, func() {})
-}
