@@ -5,7 +5,7 @@ glh: golang OpenGL helpers
 
 This package contains a number of functions useful for applications using OpenGL.
 
-[Code Reference](http://go.pkgdoc.org/github.com/go-gl/glh)
+[Code Reference](http://godoc.org//github.com/go-gl/glh)
 
 *Features*
 
