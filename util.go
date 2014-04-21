@@ -92,8 +92,8 @@ func WindowToProj(x, y int) (float64, float64) {
 	var projmat, modelmat [16]float64
 	var viewport [4]int32
 
-	gl.GetDoublev(gl.PROJECTION_MATRIX, projmat[0:15])
-	gl.GetDoublev(gl.MODELVIEW_MATRIX, modelmat[0:15])
+	gl.GetDoublev(gl.PROJECTION_MATRIX, projmat[:])
+	gl.GetDoublev(gl.MODELVIEW_MATRIX, modelmat[:])
 
 	gl.GetIntegerv(gl.VIEWPORT, viewport[0:3])
 	// Need to convert so that y is at lower left
@@ -110,8 +110,8 @@ func ProjToWindow(x, y float64) (float64, float64) {
 	var projmat, modelmat [16]float64
 	var viewport [4]int32
 
-	gl.GetDoublev(gl.PROJECTION_MATRIX, projmat[0:15])
-	gl.GetDoublev(gl.MODELVIEW_MATRIX, modelmat[0:15])
+	gl.GetDoublev(gl.PROJECTION_MATRIX, projmat[:])
+	gl.GetDoublev(gl.MODELVIEW_MATRIX, modelmat[:])
 	gl.GetIntegerv(gl.VIEWPORT, viewport[0:3])
 
 	px, py, _ := glu.Project(float64(x), float64(y), 0,
