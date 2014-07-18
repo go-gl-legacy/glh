@@ -121,6 +121,25 @@ func ProjToWindow(x, y float64) (float64, float64) {
 	return px, float64(viewport[3]) - py
 }
 
+// Draws lines of unit length along the X, Y, Z axis in R, G, B
+func DrawAxes() {
+	gl.Begin(gl.LINES)
+
+	gl.Color3d(1, 0, 0)
+	gl.Vertex3d(0, 0, 0)
+	gl.Vertex3d(1, 0, 0)
+
+	gl.Color3d(0, 1, 0)
+	gl.Vertex3d(0, 0, 0)
+	gl.Vertex3d(0, 1, 0)
+
+	gl.Color3d(0, 0, 1)
+	gl.Vertex3d(0, 0, 0)
+	gl.Vertex3d(0, 0, 1)
+
+	gl.End()
+}
+
 // Draws a cross on the screen with known lengths, useful for understanding
 // screen dimensions
 func DebugLines() {
