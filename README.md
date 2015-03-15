@@ -1,7 +1,7 @@
 glh: golang OpenGL helpers
 ==========================
 
-[![Build Status](https://secure.travis-ci.org/go-gl-legacy/glh.png)](http://travis-ci.org/go-gl/glh)
+[![Build Status](https://secure.travis-ci.org/go-gl-legacy/glh.png)](http://travis-ci.org/go-gl-legacy/glh)
 
 This package contains a number of functions useful for applications using OpenGL.
 
